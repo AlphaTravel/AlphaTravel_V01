@@ -2,6 +2,7 @@ import { withSupabase } from "npm:@supabase/server";
 
 const roles = new Set(["admin", "manager", "operator", "guide", "accountant", "viewer"]);
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
+const usernamePattern = /^[a-z][a-z0-9._-]{2,31}$/;
 
 function json(body: Record<string, unknown>, status = 200) {
   return Response.json(body, {
@@ -55,10 +56,12 @@ const handler = {
     }
 
     const email = String(payload.email ?? "").trim().toLowerCase();
+    const username = String(payload.username ?? "").trim().toLowerCase();
     const displayName = String(payload.displayName ?? "").trim();
     const role = String(payload.role ?? "");
     if (
       !emailPattern.test(email) || email.length > 254 ||
+      !usernamePattern.test(username) ||
       displayName.length < 2 || displayName.length > 120 ||
       !roles.has(role)
     ) {
@@ -94,6 +97,7 @@ const handler = {
         organization_id: caller.organization_id,
         user_id: invitedUserId,
         email,
+        username,
         display_name: displayName,
         role,
         is_active: true,

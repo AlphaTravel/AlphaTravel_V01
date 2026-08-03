@@ -16,6 +16,7 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 - Provider email attivo per l’accesso, ma signup pubblico globalmente disabilitato; account solo su invito con password scelta dall’utente.
 - Password: minimo 12 caratteri e complessità; OTP/inviti con scadenza 15 minuti.
 - Rate limit Auth irrigidito; inviti amministrativi limitati anche dalla Edge Function.
+- Username univoci e normalizzati; risoluzione dell’identità solo nella Edge Function, token trasferiti esclusivamente al Server Action e tentativi memorizzati come HMAC senza IP o username in chiaro.
 - Scritture dirette sui ruoli revocate; modifica consentita solo da RPC vincolata a admin + MFA.
 - Impossibile eliminare, sospendere o declassare l’ultimo amministratore attivo.
 - Chiave privilegiata confinata nell’infrastruttura Supabase; non presente in Vercel, browser o repository.
@@ -27,7 +28,7 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 
 ## Verifiche eseguite
 
-- 5 migration remote sincronizzate con il repository.
+- 8 migration remote sincronizzate con il repository.
 - `supabase db lint --linked --level warning`: nessun errore.
 - Edge Function senza autenticazione: risposta `401`.
 - `pnpm audit --prod`: nessuna vulnerabilità nota.

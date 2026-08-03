@@ -41,10 +41,11 @@ export function AdminPanel({ data, currentUserId }: { data: AdminDashboardData; 
       {notice ? <div className={notice.ok ? "success-banner" : "form-error"}>{notice.message}</div> : null}
 
       <section className="form-card">
-        <div className="form-card-title"><span><MailPlus size={18} /></span><div><h2>Invita un utente</h2><p>L’utente riceve un link monouso e sceglie personalmente la password.</p></div></div>
+        <div className="form-card-title"><span><MailPlus size={18} /></span><div><h2>Invita un utente</h2><p>Assegna lo username di accesso. L’email serve soltanto per attivazione e recupero.</p></div></div>
         <form className="admin-invite-form" onSubmit={invite}>
+          <label><span>Username</span><input name="username" minLength={3} maxLength={32} pattern="[A-Za-z][A-Za-z0-9._-]{2,31}" autoCapitalize="none" spellCheck={false} autoComplete="off" required /></label>
           <label><span>Nome visualizzato</span><input name="displayName" minLength={2} maxLength={120} autoComplete="off" required /></label>
-          <label><span>Email di accesso</span><input name="email" type="email" maxLength={254} autoComplete="off" required /></label>
+          <label><span>Email di attivazione</span><input name="email" type="email" maxLength={254} autoComplete="off" required /></label>
           <label><span>Ruolo</span><select name="role" defaultValue="operator">{roleOptions.map((role) => <option value={role.value} key={role.value}>{role.label}</option>)}</select></label>
           <button className="button button-primary" disabled={busy === "invite"} type="submit">{busy === "invite" ? <LoaderCircle className="spin" size={16} /> : <MailPlus size={16} />}Invia invito</button>
         </form>
@@ -57,10 +58,11 @@ export function AdminPanel({ data, currentUserId }: { data: AdminDashboardData; 
             <thead><tr><th>Utente</th><th>Ruolo</th><th>Stato</th><th>Creato</th><th>Azioni</th></tr></thead>
             <tbody>{data.members.map((member) => (
               <tr key={member.userId}>
-                <td><strong>{member.displayName}{member.userId === currentUserId ? " · tu" : ""}</strong><small>{member.email}</small></td>
+                <td><strong>{member.displayName}{member.userId === currentUserId ? " · tu" : ""}</strong><small>@{member.username} · {member.email}</small></td>
                 <td colSpan={4} className="admin-member-control-cell">
                   <form className="admin-member-controls" onSubmit={(event) => update(event, member.userId)}>
                     <input type="hidden" name="userId" value={member.userId} />
+                    <input name="username" defaultValue={member.username} minLength={3} maxLength={32} pattern="[A-Za-z][A-Za-z0-9._-]{2,31}" autoCapitalize="none" spellCheck={false} aria-label={`Username di ${member.displayName}`} required />
                     <select name="role" defaultValue={member.roleKey} aria-label={`Ruolo di ${member.displayName}`}>{roleOptions.map((role) => <option value={role.value} key={role.value}>{role.label}</option>)}</select>
                     <select name="active" defaultValue={String(member.isActive)} aria-label={`Stato di ${member.displayName}`}><option value="true">Attivo</option><option value="false">Sospeso</option></select>
                     <time dateTime={member.createdAt}>{new Intl.DateTimeFormat("it-IT", { dateStyle: "medium" }).format(new Date(member.createdAt))}</time>

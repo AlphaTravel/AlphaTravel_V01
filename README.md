@@ -31,11 +31,14 @@ pnpm supabase link --project-ref PROJECT_REF
 pnpm supabase db push --dry-run
 pnpm supabase db push
 pnpm supabase config push
-pnpm supabase secrets set APP_SITE_URL=https://example.com
+pnpm supabase secrets set APP_SITE_URL=https://example.com LOGIN_RATE_LIMIT_SECRET=UNA_STRINGA_CASUALE_DI_ALMENO_32_CARATTERI
 pnpm supabase functions deploy admin-users --use-api
+pnpm supabase functions deploy username-login --no-verify-jwt --use-api
 ```
 
-Le migration creano schema, RLS, bucket privato, comandi transazionali e controllo amministrativo. La configurazione Auth mantiene attivo il provider email per gli accessi, ma blocca globalmente il signup pubblico; richiede inoltre password forti e abilita TOTP. Il primo amministratore va creato in Supabase Auth e collegato all’organizzazione; tutti gli utenti successivi vengono invitati dall’area **Amministrazione**.
+Le migration creano schema, RLS, bucket privato, comandi transazionali e controllo amministrativo. Gli utenti accedono con uno username globale; l’email Supabase resta un’identità interna usata solo per attivazione e recupero e non viene esposta dal servizio di login. La configurazione Auth mantiene attivo il provider email sottostante, ma blocca globalmente il signup pubblico; richiede inoltre password forti e abilita TOTP. Il primo amministratore usa lo username `admin`; tutti gli utenti successivi ricevono uno username dall’area **Amministrazione**.
+
+Il servizio `username-login` è pubblico perché precede l’autenticazione, ma accetta soltanto richieste provenienti dal dominio configurato, non rivela se un account esiste e applica un limite di cinque tentativi ogni 15 minuti per coppia username/origine di rete. `LOGIN_RATE_LIMIT_SECRET` deve essere generato casualmente, conservato soltanto nei secret Supabase e mai inserito in Git o Vercel.
 
 Per gli inviti di produzione configura un SMTP aziendale e un template che richieda una conferma esplicita o un OTP. I link monouso del provider email predefinito possono essere aperti anticipatamente dai sistemi antispam del destinatario.
 

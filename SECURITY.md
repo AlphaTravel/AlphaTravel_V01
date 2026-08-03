@@ -12,6 +12,7 @@ Nessun software può offrire una garanzia assoluta di sicurezza. AlphaTravel è 
 - cookie di sessione gestiti dal server, route protette, risposte non memorizzabili e CSP con nonce univoco per richiesta;
 - area amministrativa visibile solo al ruolo `admin` e caricata esclusivamente dopo una verifica MFA AAL2;
 - inviti eseguiti in una Edge Function Supabase con JWT verificato, controllo del ruolo, MFA, rate limit e rollback in caso di errore;
+- login tramite username risolto esclusivamente lato server, con email interna non restituita al browser, risposte anti-enumerazione e rate limit dedicato;
 - nessuna chiave segreta o `service_role` presente nell’applicazione Vercel o nel browser;
 - protezione database che impedisce di sospendere o declassare l’ultimo amministratore attivo;
 - nessun dato completo di carta o CVV memorizzato.

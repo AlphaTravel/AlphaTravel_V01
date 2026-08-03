@@ -10,12 +10,14 @@ export type AdminActionResult = { ok: boolean; message: string };
 
 const roleSchema = z.enum(["admin", "manager", "operator", "guide", "accountant", "viewer"]);
 const inviteSchema = z.object({
+  username: z.string().trim().toLowerCase().regex(/^[a-z][a-z0-9._-]{2,31}$/),
   email: z.email().max(254),
   displayName: z.string().trim().min(2).max(120),
   role: roleSchema,
 });
 const updateSchema = z.object({
   userId: z.uuid(),
+  username: z.string().trim().toLowerCase().regex(/^[a-z][a-z0-9._-]{2,31}$/),
   role: roleSchema,
   active: z.enum(["true", "false"]),
 });
@@ -34,7 +36,7 @@ async function getVerifiedAdminContext() {
 
 export async function inviteMemberAction(formData: FormData): Promise<AdminActionResult> {
   const parsed = inviteSchema.safeParse(Object.fromEntries(formData.entries()));
-  if (!parsed.success) return { ok: false, message: "Controlla nome, email e ruolo." };
+  if (!parsed.success) return { ok: false, message: "Controlla username, nome, email e ruolo." };
 
   const context = await getVerifiedAdminContext();
   const config = getSupabaseConfig();
@@ -76,6 +78,7 @@ export async function updateMemberAction(formData: FormData): Promise<AdminActio
 
   const { error } = await context.supabase.rpc("admin_update_member", {
     target_user_id: parsed.data.userId,
+    target_username: parsed.data.username,
     target_role: parsed.data.role,
     target_active: parsed.data.active === "true",
   });
@@ -86,5 +89,5 @@ export async function updateMemberAction(formData: FormData): Promise<AdminActio
   }
 
   revalidatePath("/admin");
-  return { ok: true, message: "Ruolo e stato aggiornati." };
+  return { ok: true, message: "Username, ruolo e stato aggiornati." };
 }

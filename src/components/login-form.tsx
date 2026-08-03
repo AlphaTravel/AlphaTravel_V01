@@ -3,6 +3,8 @@
 import { ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, Sparkles } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
+import { loginWithUsernameAction } from "@/app/login-actions";
+import { safeLocalPath } from "@/lib/safe-redirect";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
@@ -19,8 +21,6 @@ export function LoginForm() {
     event.preventDefault();
     setError("");
     const form = new FormData(event.currentTarget);
-    const email = String(form.get("email") ?? "");
-    const password = String(form.get("password") ?? "");
     const supabase = createClient();
 
     if (!supabase) {
@@ -29,30 +29,15 @@ export function LoginForm() {
     }
 
     setLoading(true);
-    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    if (authError || !authData.user) {
+    const result = await loginWithUsernameAction(form);
+    if (!result.ok) {
       setLoading(false);
-      setError("Credenziali non valide oppure account non abilitato.");
-      return;
-    }
-
-    const { data: member, error: memberError } = await supabase
-      .from("organization_members")
-      .select("user_id")
-      .eq("user_id", authData.user.id)
-      .eq("is_active", true)
-      .maybeSingle();
-
-    if (memberError || !member) {
-      await supabase.auth.signOut();
-      setLoading(false);
-      setError("Credenziali non valide oppure account non abilitato.");
+      setError(result.message);
       return;
     }
 
     setLoading(false);
-    const next = searchParams.get("next");
-    router.replace(next?.startsWith("/") ? next : "/dashboard");
+    router.replace(safeLocalPath(searchParams.get("next")));
     router.refresh();
   }
 
@@ -76,7 +61,7 @@ export function LoginForm() {
           {passwordUpdated ? <div className="success-banner">Password impostata. Ora puoi accedere.</div> : null}
           {invalidLink ? <div className="form-error">Link non valido o scaduto. Richiedi un nuovo invito.</div> : null}
           {error ? <div className="form-error">{error}</div> : null}
-          <label><span>Email</span><input required name="email" type="email" autoComplete="email" placeholder="nome@agenzia.it" /></label>
+          <label><span>Username</span><input required name="username" type="text" minLength={3} maxLength={32} pattern="[A-Za-z][A-Za-z0-9._-]{2,31}" autoCapitalize="none" spellCheck={false} autoComplete="username" placeholder="nome.utente" /></label>
           <label><span>Password</span><div className="password-field"><input required name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="••••••••••••" /><button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Nascondi password" : "Mostra password"}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>
           <div className="login-options"><span>Account disponibili solo su invito</span><span>Per il recupero contatta l’amministratore</span></div>
           <button className="button button-primary login-submit" disabled={loading} type="submit"><LockKeyhole size={17} />{loading ? "Accesso…" : configured ? "Accedi" : "Entra nella demo"}<ArrowRight size={17} /></button>

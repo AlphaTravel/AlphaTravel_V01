@@ -8,6 +8,7 @@ type AdminMemberRow = {
   user_id: string;
   display_name: string;
   email: string | null;
+  username: string;
   role: AppRole;
   is_active: boolean;
   created_at: string;
@@ -26,7 +27,7 @@ export async function getAdminDashboardData() {
   if (!supabase) throw new Error("Supabase non configurato");
 
   const [membersResult, pilgrimsResult, tripsResult, registrationsResult, documentsResult, paymentsResult, auditsResult] = await Promise.all([
-    supabase.from("organization_members").select("user_id,display_name,email,role,is_active,created_at").order("display_name"),
+    supabase.from("organization_members").select("user_id,display_name,email,username,role,is_active,created_at").order("display_name"),
     supabase.from("pilgrims").select("id", { count: "exact", head: true }).is("archived_at", null),
     supabase.from("trips").select("id", { count: "exact", head: true }),
     supabase.from("registrations").select("id", { count: "exact", head: true }).neq("status", "cancelled"),
@@ -62,6 +63,7 @@ export async function getAdminDashboardData() {
       userId: member.user_id,
       displayName: member.display_name,
       email: member.email ?? "Email non disponibile",
+      username: member.username,
       roleKey: member.role,
       roleLabel: roleLabels[member.role],
       isActive: member.is_active,

@@ -18,8 +18,24 @@ const adminMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/202608030005_admin_security.sql"),
   "utf8",
 );
+const usernameMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/202608030006_username_auth.sql"),
+  "utf8",
+);
+const usernameRateLimitFix = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/202608030007_fix_username_rate_limit.sql"),
+  "utf8",
+);
+const usernameLookupMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/202608030008_username_login_lookup.sql"),
+  "utf8",
+);
 const edgeFunction = readFileSync(
   resolve(process.cwd(), "supabase/functions/admin-users/index.ts"),
+  "utf8",
+);
+const usernameLoginFunction = readFileSync(
+  resolve(process.cwd(), "supabase/functions/username-login/index.ts"),
   "utf8",
 );
 const proxy = readFileSync(resolve(process.cwd(), "src/proxy.ts"), "utf8");
@@ -91,6 +107,32 @@ describe("database security migration", () => {
     expect(edgeFunction).toContain('withSupabase({ auth: "user" }');
     expect(edgeFunction).toContain('jwtClaims?.aal !== "aal2"');
     expect(edgeFunction).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+  });
+
+  it("keeps usernames unique and login throttling private", () => {
+    expect(usernameMigration).toContain("organization_members_username_unique_idx");
+    expect(usernameMigration).toContain("organization_members_user_unique_idx");
+    expect(usernameMigration).toContain("create table private.username_login_attempts");
+    expect(usernameMigration).toContain("revoke all on schema private from public, anon, authenticated;");
+    expect(usernameMigration).toContain("grant execute on function public.consume_username_login_attempt(text) to service_role;");
+    expect(usernameMigration).not.toContain("grant execute on function public.consume_username_login_attempt(text) to anon;");
+    expect(usernameMigration).toContain("observed_at timestamptz := clock_timestamp()");
+    expect(usernameMigration).not.toContain("current_time timestamptz");
+    expect(usernameRateLimitFix).toContain("observed_at timestamptz := clock_timestamp()");
+    expect(usernameLookupMigration).toContain("security definer");
+    expect(usernameLookupMigration).toContain("grant execute on function public.resolve_username_login(text) to service_role;");
+    expect(usernameLookupMigration).not.toContain("to anon;");
+  });
+
+  it("resolves usernames only inside the rate-limited login Edge Function", () => {
+    expect(usernameLoginFunction).toContain('Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")');
+    expect(usernameLoginFunction).toContain('keyFromSet("SUPABASE_SECRET_KEYS", "sb_secret_")');
+    expect(usernameLoginFunction).toContain('keyFromSet("SUPABASE_PUBLISHABLE_KEYS", "sb_publishable_")');
+    expect(usernameLoginFunction).toContain('Deno.env.get("LOGIN_RATE_LIMIT_SECRET")');
+    expect(usernameLoginFunction).toContain('admin.rpc("consume_username_login_attempt"');
+    expect(usernameLoginFunction).toContain('admin.rpc("resolve_username_login"');
+    expect(usernameLoginFunction).not.toContain('.from("organization_members")');
+    expect(usernameLoginFunction).not.toMatch(/return json\(\{[^}]*email/);
   });
 
   it("uses per-request CSP nonces without unsafe inline scripts", () => {
