@@ -35,7 +35,9 @@ pnpm supabase secrets set APP_SITE_URL=https://example.com
 pnpm supabase functions deploy admin-users --use-api
 ```
 
-Le migration creano schema, RLS, bucket privato, comandi transazionali e controllo amministrativo. La configurazione Auth chiude il signup pubblico, richiede password forti e abilita TOTP. Il primo amministratore va invitato in Supabase Auth e collegato all’organizzazione; tutti gli utenti successivi vengono invitati dall’area **Amministrazione**.
+Le migration creano schema, RLS, bucket privato, comandi transazionali e controllo amministrativo. La configurazione Auth mantiene attivo il provider email per gli accessi, ma blocca globalmente il signup pubblico; richiede inoltre password forti e abilita TOTP. Il primo amministratore va creato in Supabase Auth e collegato all’organizzazione; tutti gli utenti successivi vengono invitati dall’area **Amministrazione**.
+
+Per gli inviti di produzione configura un SMTP aziendale e un template che richieda una conferma esplicita o un OTP. I link monouso del provider email predefinito possono essere aperti anticipatamente dai sistemi antispam del destinatario.
 
 Le variabili pubbliche sono:
 

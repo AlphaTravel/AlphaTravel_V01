@@ -13,7 +13,7 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 - Eliminato il fallback ai dati demo quando una query di produzione fallisce.
 - Area `/admin` autorizzata server-side per ruolo, non soltanto nascosta nell’interfaccia.
 - MFA TOTP AAL2 obbligatoria prima di caricare utenti, analitiche, audit o azioni amministrative.
-- Signup pubblico disabilitato; account solo su invito con password scelta dall’utente.
+- Provider email attivo per l’accesso, ma signup pubblico globalmente disabilitato; account solo su invito con password scelta dall’utente.
 - Password: minimo 12 caratteri e complessità; OTP/inviti con scadenza 15 minuti.
 - Rate limit Auth irrigidito; inviti amministrativi limitati anche dalla Edge Function.
 - Scritture dirette sui ruoli revocate; modifica consentita solo da RPC vincolata a admin + MFA.
@@ -41,7 +41,7 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 
 1. Effettuare un penetration test indipendente prima dell’uso con dati reali e ripeterlo dopo modifiche rilevanti.
 2. Sul piano Supabase Free non sono disponibili timeout sessione forzati configurabili e Point-in-Time Recovery: per produzione è raccomandato il piano che li include.
-3. Configurare SMTP aziendale, notifiche di sicurezza e monitoraggio degli errori; il provider email predefinito ha limiti bassi.
+3. Configurare SMTP aziendale, notifiche di sicurezza e monitoraggio degli errori. Il provider predefinito ha limiti bassi e i suoi link monouso possono essere consumati dai controlli antispam; usare un template con conferma esplicita o OTP.
 4. Valutare CAPTCHA/Turnstile sul login dopo aver creato una chiave dedicata.
 5. Configurare backup, prove periodiche di ripristino, retention degli audit e procedura di risposta agli incidenti.
 6. Completare DPIA, informative, consensi, nomine e tempi di conservazione con un consulente GDPR.

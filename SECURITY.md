@@ -21,9 +21,10 @@ Nessun software può offrire una garanzia assoluta di sicurezza. AlphaTravel è 
 1. Far verificare privacy, informative, consensi, tempi di conservazione e nomine GDPR da un consulente competente.
 2. Estendere l’obbligo MFA a responsabili e operatori che trattano dati sanitari; per gli amministratori è già obbligatorio.
 3. Mantenere disabilitate le registrazioni pubbliche in Supabase Auth; gli utenti devono essere invitati dall’amministratore.
-4. Configurare backup, Point-in-Time Recovery e avvisi di sicurezza del progetto Supabase.
-5. Impostare log retention e un processo di revoca immediata degli account.
-6. Effettuare vulnerability scan, dependency review e penetration test prima di trattare dati reali.
+4. Configurare un SMTP aziendale e inviti con conferma esplicita o OTP, così i controlli antispam non possono consumare i link monouso.
+5. Configurare backup, Point-in-Time Recovery e avvisi di sicurezza del progetto Supabase.
+6. Impostare log retention e un processo di revoca immediata degli account.
+7. Effettuare vulnerability scan, dependency review e penetration test prima di trattare dati reali.
 
 L’audit tecnico corrente e i rischi residui sono documentati in [SECURITY_AUDIT.md](./SECURITY_AUDIT.md).
 
