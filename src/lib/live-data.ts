@@ -2,7 +2,7 @@ import "server-only";
 
 import { pilgrims as demoPilgrims, trips as demoTrips } from "./demo-data";
 import { createClient } from "./supabase/server";
-import type { MobilityLevel, PaymentStatus, Pilgrim, PilgrimStatus, Trip, TripStatus } from "./types";
+import type { AppRole, CurrentMember, MobilityLevel, PaymentStatus, Pilgrim, PilgrimStatus, Trip, TripStatus } from "./types";
 
 type Row = Record<string, unknown>;
 
@@ -45,7 +45,10 @@ export async function getTrips(): Promise<Trip[]> {
     .from("trips")
     .select("id,code,title,destination,starts_on,ends_on,status,capacity,base_price,planned_walking_km,registrations(id,agreed_price,payments(amount,status)),accommodations(id),vehicles(id)")
     .order("starts_on", { ascending: true });
-  if (error) return demoTrips;
+  if (error) {
+    console.error("getTrips failed", error.code);
+    return [];
+  }
 
   const tones: Trip["coverTone"][] = ["blue", "amber", "violet", "teal"];
   return (data as unknown as Row[]).map((item, index) => {
@@ -72,7 +75,10 @@ export async function getPilgrims(): Promise<Pilgrim[]> {
     .select("id,first_name,last_name,email,phone,birth_date,city,document_expiry,pilgrim_health_profiles(mobility,indicative_walking_km,dietary_requirements,allergies),emergency_contacts(name,phone,is_primary),registrations(id,trip_id,status,agreed_price,notes,trips(title),payments(amount,status))")
     .is("archived_at", null)
     .order("last_name", { ascending: true });
-  if (error) return demoPilgrims;
+  if (error) {
+    console.error("getPilgrims failed", error.code);
+    return [];
+  }
 
   return (data as unknown as Row[]).map((item) => {
     const firstName = text(item.first_name);
@@ -99,23 +105,38 @@ export async function getPilgrims(): Promise<Pilgrim[]> {
   });
 }
 
-export async function getCurrentMember() {
-  const fallback = { name: "Federico", role: "Amministratore", initials: "FG" };
+export async function getCurrentMember(): Promise<CurrentMember | null> {
+  const fallback: CurrentMember = {
+    id: "demo-admin",
+    organizationId: "demo-organization",
+    name: "Federico",
+    role: "Amministratore",
+    roleKey: "admin",
+    initials: "FG",
+  };
   const supabase = await createClient();
   if (!supabase) return fallback;
   const { data: authData } = await supabase.auth.getUser();
-  if (!authData.user) return fallback;
+  if (!authData.user) return null;
   const { data, error } = await supabase
     .from("organization_members")
-    .select("display_name,role")
+    .select("organization_id,user_id,display_name,role")
     .eq("user_id", authData.user.id)
     .eq("is_active", true)
     .limit(1)
     .maybeSingle();
-  if (error || !data) return fallback;
+  if (error || !data) return null;
   const member = data as unknown as Row;
   const name = text(member.display_name, authData.user.email ?? "Utente");
   const roles: Record<string, string> = { admin: "Amministratore", manager: "Responsabile", operator: "Operatore", guide: "Accompagnatore", accountant: "Contabilità", viewer: "Lettore" };
   const initials = name.split(/\s+/).slice(0, 2).map((part) => part[0] ?? "").join("").toUpperCase();
-  return { name, role: roles[text(member.role)] ?? "Utente", initials };
+  const roleKey = text(member.role) as AppRole;
+  return {
+    id: text(member.user_id),
+    organizationId: text(member.organization_id),
+    name,
+    role: roles[roleKey] ?? "Utente",
+    roleKey,
+    initials,
+  };
 }

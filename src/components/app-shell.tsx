@@ -11,6 +11,7 @@ import {
   Route,
   Search,
   Settings,
+  ShieldCheck,
   Sparkles,
   Users,
   X,
@@ -20,6 +21,7 @@ import { usePathname } from "next/navigation";
 import { useState, type ReactNode } from "react";
 import { signOutAction } from "@/app/actions";
 import { cn } from "@/lib/utils";
+import type { CurrentMember } from "@/lib/types";
 
 const navigation = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -29,7 +31,7 @@ const navigation = [
   { href: "/pagamenti", label: "Pagamenti", icon: CreditCard },
 ];
 
-export function AppShell({ children, user }: { children: ReactNode; user: { name: string; role: string; initials: string } }) {
+export function AppShell({ children, user }: { children: ReactNode; user: CurrentMember }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
 
@@ -66,6 +68,16 @@ export function AppShell({ children, user }: { children: ReactNode; user: { name
               </Link>
             );
           })}
+          {user.roleKey === "admin" ? (
+            <Link
+              href="/admin"
+              className={cn("nav-link", pathname.startsWith("/admin") && "nav-link-active")}
+              onClick={() => setOpen(false)}
+            >
+              <ShieldCheck size={18} strokeWidth={2} />
+              <span>Amministrazione</span>
+            </Link>
+          ) : null}
         </nav>
 
         <div className="sidebar-spacer" />

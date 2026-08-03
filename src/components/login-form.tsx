@@ -12,6 +12,8 @@ export function LoginForm() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const configured = Boolean(createClient());
+  const passwordUpdated = searchParams.get("password") === "updated";
+  const invalidLink = searchParams.get("error") === "link-invalid";
 
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -27,12 +29,28 @@ export function LoginForm() {
     }
 
     setLoading(true);
-    const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
-    setLoading(false);
-    if (authError) {
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ email, password });
+    if (authError || !authData.user) {
+      setLoading(false);
       setError("Credenziali non valide oppure account non abilitato.");
       return;
     }
+
+    const { data: member, error: memberError } = await supabase
+      .from("organization_members")
+      .select("user_id")
+      .eq("user_id", authData.user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+
+    if (memberError || !member) {
+      await supabase.auth.signOut();
+      setLoading(false);
+      setError("Credenziali non valide oppure account non abilitato.");
+      return;
+    }
+
+    setLoading(false);
     const next = searchParams.get("next");
     router.replace(next?.startsWith("/") ? next : "/dashboard");
     router.refresh();
@@ -55,6 +73,8 @@ export function LoginForm() {
       <section className="login-form-panel">
         <form className="login-card" onSubmit={handleSubmit}>
           <div><p className="eyebrow">Area riservata</p><h2>Bentornato</h2><p>Accedi al workspace della tua agenzia.</p></div>
+          {passwordUpdated ? <div className="success-banner">Password impostata. Ora puoi accedere.</div> : null}
+          {invalidLink ? <div className="form-error">Link non valido o scaduto. Richiedi un nuovo invito.</div> : null}
           {error ? <div className="form-error">{error}</div> : null}
           <label><span>Email</span><input required name="email" type="email" autoComplete="email" placeholder="nome@agenzia.it" /></label>
           <label><span>Password</span><div className="password-field"><input required name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="••••••••••••" /><button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Nascondi password" : "Mostra password"}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>

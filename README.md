@@ -23,18 +23,21 @@ Senza variabili Supabase l’app si apre in modalità demo e non salva dati.
 
 ## Configurazione Supabase
 
-1. Crea un progetto Supabase in regione europea.
-2. In **SQL Editor**, esegui nell’ordine:
-   - `supabase/migrations/202608030001_initial_schema.sql`
-   - `supabase/migrations/202608030002_private_documents.sql`
-   - `supabase/migrations/202608030003_transactional_commands.sql`
-   - `supabase/migrations/202608030004_explicit_api_grants.sql`
-3. In **Authentication > Providers > Email**, disabilita la registrazione pubblica e usa solo inviti amministrativi.
-4. Crea il primo utente da **Authentication > Users**.
-5. Recupera l’UUID di quell’utente e usa le due istruzioni commentate in `supabase/seed.sql` per creare organizzazione e amministratore.
-6. Da **Project Settings > API** copia Project URL e Publishable key.
+Il progetto remoto AlphaTravel è gestito dalla CLI ufficiale. Per un nuovo ambiente:
 
-Le sole variabili richieste sono:
+```bash
+pnpm supabase login
+pnpm supabase link --project-ref PROJECT_REF
+pnpm supabase db push --dry-run
+pnpm supabase db push
+pnpm supabase config push
+pnpm supabase secrets set APP_SITE_URL=https://example.com
+pnpm supabase functions deploy admin-users --use-api
+```
+
+Le migration creano schema, RLS, bucket privato, comandi transazionali e controllo amministrativo. La configurazione Auth chiude il signup pubblico, richiede password forti e abilita TOTP. Il primo amministratore va invitato in Supabase Auth e collegato all’organizzazione; tutti gli utenti successivi vengono invitati dall’area **Amministrazione**.
+
+Le variabili pubbliche sono:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=https://PROJECT_REF.supabase.co
@@ -42,7 +45,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-Non aggiungere la `service_role` a Vercel: questa app non ne ha bisogno.
+`NEXT_PUBLIC_SITE_URL` è consigliata e diventa necessaria quando si cambia dominio. Non aggiungere mai una chiave segreta o `service_role` a Vercel: l’operazione privilegiata di invito vive esclusivamente in una Edge Function Supabase autenticata e protetta da MFA.
 
 ## Deploy Vercel
 

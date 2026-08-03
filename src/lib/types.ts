@@ -2,6 +2,16 @@ export type PilgrimStatus = "Confermato" | "In attesa" | "Da completare";
 export type TripStatus = "Bozza" | "Aperto" | "Confermato" | "Completo" | "Concluso";
 export type PaymentStatus = "Pagato" | "Parziale" | "Da pagare" | "Scaduto";
 export type MobilityLevel = "Autonomo" | "Supporto leggero" | "Assistenza";
+export type AppRole = "admin" | "manager" | "operator" | "guide" | "accountant" | "viewer";
+
+export interface CurrentMember {
+  id: string;
+  organizationId: string;
+  name: string;
+  role: string;
+  roleKey: AppRole;
+  initials: string;
+}
 
 export interface Pilgrim {
   id: string;

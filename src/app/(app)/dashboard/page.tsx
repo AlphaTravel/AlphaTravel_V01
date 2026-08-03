@@ -1,5 +1,6 @@
 import { AlertTriangle, CircleDollarSign, Route, Users } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { AlertList } from "@/components/alert-list";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -8,6 +9,7 @@ import { getCurrentMember, getTrips } from "@/lib/live-data";
 
 export default async function DashboardPage() {
   const [trips, member] = await Promise.all([getTrips(), getCurrentMember()]);
+  if (!member) redirect("/accesso-negato");
   const participantCount = trips.reduce((sum, trip) => sum + trip.participants, 0);
   const collected = trips.reduce((sum, trip) => sum + trip.collected, 0);
   return (
