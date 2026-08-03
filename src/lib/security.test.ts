@@ -10,6 +10,10 @@ const commandsMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/202608030003_transactional_commands.sql"),
   "utf8",
 );
+const grantsMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/202608030004_explicit_api_grants.sql"),
+  "utf8",
+);
 
 const tenantTables = [
   "organizations",
@@ -55,5 +59,11 @@ describe("database security migration", () => {
     expect(commandsMigration).toContain("security invoker");
     expect(commandsMigration).toContain("revoke all on function public.create_pilgrim_with_details(jsonb) from public;");
     expect(commandsMigration).toContain("revoke all on function public.create_trip(jsonb) from public;");
+  });
+
+  it("uses explicit authenticated grants without anonymous table access", () => {
+    expect(grantsMigration).toContain("revoke all privileges on all tables in schema public from anon;");
+    expect(grantsMigration).toContain("grant select, insert, update, delete on table public.pilgrims to authenticated;");
+    expect(grantsMigration).not.toMatch(/grant .* on table public\.[a-z_]+ to anon;/);
   });
 });

@@ -28,6 +28,7 @@ Senza variabili Supabase l’app si apre in modalità demo e non salva dati.
    - `supabase/migrations/202608030001_initial_schema.sql`
    - `supabase/migrations/202608030002_private_documents.sql`
    - `supabase/migrations/202608030003_transactional_commands.sql`
+   - `supabase/migrations/202608030004_explicit_api_grants.sql`
 3. In **Authentication > Providers > Email**, disabilita la registrazione pubblica e usa solo inviti amministrativi.
 4. Crea il primo utente da **Authentication > Users**.
 5. Recupera l’UUID di quell’utente e usa le due istruzioni commentate in `supabase/seed.sql` per creare organizzazione e amministratore.
