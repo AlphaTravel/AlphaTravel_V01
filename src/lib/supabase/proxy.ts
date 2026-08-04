@@ -34,12 +34,5 @@ export async function updateSession(request: NextRequest, requestHeaders = new H
     return NextResponse.redirect(url);
   }
 
-  if (data?.claims && isLogin) {
-    const url = request.nextUrl.clone();
-    url.pathname = "/dashboard";
-    url.search = "";
-    return NextResponse.redirect(url);
-  }
-
   return response;
 }

@@ -1,15 +1,21 @@
 "use server";
 
 import { z } from "zod";
+import { postLoginPath } from "@/lib/landing-path";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
-export type LoginActionResult = { ok: boolean; message: string };
+export type LoginActionResult =
+  | { ok: true; message: string; redirectTo: string }
+  | { ok: false; message: string };
 
 const loginSchema = z.object({
   username: z.string().trim().toLowerCase().regex(/^[a-z][a-z0-9._-]{2,31}$/),
   password: z.string().min(1).max(128),
+  next: z.string().max(2048).optional().default(""),
 });
+
+const roleSchema = z.enum(["admin", "manager", "operator", "guide", "accountant", "viewer"]);
 
 export async function loginWithUsernameAction(formData: FormData): Promise<LoginActionResult> {
   const parsed = loginSchema.safeParse(Object.fromEntries(formData.entries()));
@@ -54,7 +60,7 @@ export async function loginWithUsernameAction(formData: FormData): Promise<Login
 
     const { data: member, error: memberError } = await supabase
       .from("organization_members")
-      .select("user_id")
+      .select("user_id,role")
       .eq("user_id", sessionData.user.id)
       .eq("is_active", true)
       .maybeSingle();
@@ -62,10 +68,19 @@ export async function loginWithUsernameAction(formData: FormData): Promise<Login
       await supabase.auth.signOut();
       return { ok: false, message: "Credenziali non valide oppure account non abilitato." };
     }
+
+    const role = roleSchema.safeParse(member.role);
+    if (!role.success) {
+      await supabase.auth.signOut();
+      return { ok: false, message: "Credenziali non valide oppure account non abilitato." };
+    }
+
+    return {
+      ok: true,
+      message: "Accesso effettuato.",
+      redirectTo: postLoginPath(parsed.data.next, role.data),
+    };
   } catch {
     return { ok: false, message: "Servizio di accesso temporaneamente non disponibile." };
   }
-
-  return { ok: true, message: "Accesso effettuato." };
 }
-

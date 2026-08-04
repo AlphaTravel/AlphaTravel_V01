@@ -4,7 +4,6 @@ import { ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, Sparkles } from "luc
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
 import { loginWithUsernameAction } from "@/app/login-actions";
-import { safeLocalPath } from "@/lib/safe-redirect";
 import { createClient } from "@/lib/supabase/client";
 
 export function LoginForm() {
@@ -37,7 +36,7 @@ export function LoginForm() {
     }
 
     setLoading(false);
-    router.replace(safeLocalPath(searchParams.get("next")));
+    router.replace(result.redirectTo);
     router.refresh();
   }
 
@@ -57,6 +56,7 @@ export function LoginForm() {
       </section>
       <section className="login-form-panel">
         <form className="login-card" onSubmit={handleSubmit}>
+          <input type="hidden" name="next" value={searchParams.get("next") ?? ""} />
           <div><p className="eyebrow">Area riservata</p><h2>Bentornato</h2><p>Accedi al workspace della tua agenzia.</p></div>
           {passwordUpdated ? <div className="success-banner">Password impostata. Ora puoi accedere.</div> : null}
           {invalidLink ? <div className="form-error">Link non valido o scaduto. Richiedi un nuovo invito.</div> : null}
