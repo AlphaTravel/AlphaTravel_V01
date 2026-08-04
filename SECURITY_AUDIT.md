@@ -1,6 +1,6 @@
 # Audit di sicurezza AlphaTravel
 
-Data: 3 agosto 2026
+Data: 4 agosto 2026
 Ambito: applicazione Next.js, Supabase Auth/PostgreSQL/Storage/Edge Functions, configurazione HTTP e dipendenze.
 
 ## Esito
@@ -10,7 +10,7 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 ## Correzioni applicate
 
 - Accesso **fail closed**: un utente autenticato ma senza membership attiva non entra nel workspace.
-- Eliminato il fallback ai dati demo quando una query di produzione fallisce.
+- Eliminati il fallback e i dati demo: se Supabase non è configurato il workspace resta bloccato.
 - Area `/admin` autorizzata server-side per ruolo, non soltanto nascosta nell’interfaccia.
 - MFA TOTP AAL2 obbligatoria prima di caricare utenti, analitiche, audit o azioni amministrative.
 - Provider email attivo per l’accesso, ma signup pubblico globalmente disabilitato; account solo su invito con password scelta dall’utente.
@@ -24,18 +24,23 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 - Header HSTS, anti-framing, anti-MIME sniffing, Permissions Policy e `Cache-Control: private, no-store` verificati.
 - RLS su tutte le tabelle esposte; dati sanitari e documenti sensibili separati e più restrittivi.
 - Bucket documenti privato, limiti MIME/dimensione e autorizzazione per percorso/organizzazione.
+- Upload documenti con verifica della firma binaria, nome file ripulito, limite 4 MB e download firmato di 60 secondi.
+- Esportazioni CSV protette dalla formula injection e prive di dati sanitari o numeri di carta.
+- Controlli database concorrenti su capienza dei viaggi e delle camere, coerenza gruppo/camera/posto con il viaggio e saldo netto di pagamenti/rimborsi.
+- Controlli per ruolo replicati su pagina, Server Action, API e Row Level Security; le sezioni non autorizzate non vengono renderizzate.
 - Audit delle modifiche sensibili senza memorizzare il contenuto modificato.
 
 ## Verifiche eseguite
 
-- 8 migration remote sincronizzate con il repository.
-- `supabase db lint --linked --level warning`: nessun errore.
+- 10 migration remote sincronizzate con il repository.
+- Supabase SQL Editor: 10 migration applicate e registrate; funzioni e trigger creati senza errori.
 - Edge Function senza autenticazione: risposta `401`.
 - `pnpm audit --prod`: nessuna vulnerabilità nota.
 - ESLint: zero warning/errori.
 - TypeScript: zero errori.
-- 30 test automatici superati.
+- 57 test automatici superati in 8 suite.
 - Build Next.js di produzione completata.
+- 26 route dinamiche compilate, incluse logistica, modifica, documenti privati, pagamenti e impostazioni.
 - Test locale della CSP: nonce della risposta presente sugli script Next.js e cache disabilitata.
 
 ## Rischi residui e attività obbligatorie

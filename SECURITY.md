@@ -16,6 +16,9 @@ Nessun software può offrire una garanzia assoluta di sicurezza. AlphaTravel è 
 - nessuna chiave segreta o `service_role` presente nell’applicazione Vercel o nel browser;
 - protezione database che impedisce di sospendere o declassare l’ultimo amministratore attivo;
 - nessun dato completo di carta o CVV memorizzato.
+- avvio fail-closed: senza configurazione Supabase non viene creato alcun utente o dato demo;
+- controlli transazionali nel database per capienza viaggi/camere, coerenza tra viaggio, gruppo, camera e posto, e limiti contabili su incassi e rimborsi;
+- upload documenti con firma binaria verificata, nome ripulito, limite 4 MB, bucket privato e link di download firmati per 60 secondi.
 
 ## Prima dell’uso reale
 

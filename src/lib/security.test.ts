@@ -30,6 +30,14 @@ const usernameLookupMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/202608030008_username_login_lookup.sql"),
   "utf8",
 );
+const operationalIntegrityMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/202608040001_operational_integrity.sql"),
+  "utf8",
+);
+const atomicUpdateMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/202608040002_atomic_pilgrim_updates.sql"),
+  "utf8",
+);
 const edgeFunction = readFileSync(
   resolve(process.cwd(), "supabase/functions/admin-users/index.ts"),
   "utf8",
@@ -140,5 +148,20 @@ describe("database security migration", () => {
     expect(proxy).toContain("'strict-dynamic'");
     expect(proxy).toContain("script-src-attr 'none'");
     expect(proxy).not.toMatch(/script-src[^\n]+unsafe-inline/);
+  });
+
+  it("enforces cross-trip and accounting invariants in PostgreSQL", () => {
+    expect(operationalIntegrityMigration).toContain("create trigger registrations_capacity");
+    expect(operationalIntegrityMigration).toContain("create trigger registrations_group_same_trip");
+    expect(operationalIntegrityMigration).toContain("create trigger room_assignments_same_trip");
+    expect(operationalIntegrityMigration).toContain("create trigger seat_assignments_same_trip");
+    expect(operationalIntegrityMigration).toContain("create trigger payments_balance_guard");
+    expect(operationalIntegrityMigration).toContain("for update;");
+  });
+
+  it("updates pilgrim core, emergency and health data atomically", () => {
+    expect(atomicUpdateMigration).toContain("create or replace function public.update_pilgrim_with_details(payload jsonb)");
+    expect(atomicUpdateMigration).toContain("security invoker");
+    expect(atomicUpdateMigration).toContain("revoke all on function public.update_pilgrim_with_details(jsonb) from public;");
   });
 });

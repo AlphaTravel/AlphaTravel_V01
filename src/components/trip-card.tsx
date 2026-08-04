@@ -4,7 +4,7 @@ import type { Trip } from "@/lib/types";
 import { cn, formatCurrency, formatDate, percentage } from "@/lib/utils";
 import { StatusBadge } from "./status-badge";
 
-export function TripCard({ trip }: { trip: Trip }) {
+export function TripCard({ trip, canViewPayments = false }: { trip: Trip; canViewPayments?: boolean }) {
   const fill = percentage(trip.participants, trip.capacity);
   return (
     <article className="trip-card">
@@ -30,7 +30,7 @@ export function TripCard({ trip }: { trip: Trip }) {
         <div className="trip-numbers">
           <span><BedDouble size={16} /><strong>{trip.hotels}</strong><small>hotel</small></span>
           <span><BusFront size={16} /><strong>{trip.coaches}</strong><small>mezzi</small></span>
-          <span><strong>{formatCurrency(trip.collected)}</strong><small>incassato</small></span>
+          <span><strong>{canViewPayments ? formatCurrency(trip.collected) : "Riservato"}</strong><small>{canViewPayments ? "incassato" : "dati finanziari"}</small></span>
         </div>
         <div className="trip-card-footer">
           <span>Responsabile <strong>{trip.leader}</strong></span>

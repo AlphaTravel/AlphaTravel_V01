@@ -4,7 +4,20 @@ import { getSupabaseConfig } from "./config";
 
 export async function updateSession(request: NextRequest, requestHeaders = new Headers(request.headers)) {
   const config = getSupabaseConfig();
-  if (!config) return NextResponse.next({ request: { headers: requestHeaders } });
+  const isLogin = request.nextUrl.pathname.startsWith("/login");
+  const isPublicAuthRoute = isLogin
+    || request.nextUrl.pathname.startsWith("/imposta-password")
+    || request.nextUrl.pathname.startsWith("/auth/confirm")
+    || request.nextUrl.pathname.startsWith("/accesso-negato");
+
+  if (!config) {
+    if (isPublicAuthRoute) return NextResponse.next({ request: { headers: requestHeaders } });
+    const url = request.nextUrl.clone();
+    url.pathname = "/accesso-negato";
+    url.search = "";
+    url.searchParams.set("reason", "configuration");
+    return NextResponse.redirect(url);
+  }
 
   let response = NextResponse.next({ request: { headers: requestHeaders } });
   const supabase = createServerClient(config.url, config.publishableKey, {
@@ -21,12 +34,6 @@ export async function updateSession(request: NextRequest, requestHeaders = new H
   });
 
   const { data } = await supabase.auth.getClaims();
-  const isLogin = request.nextUrl.pathname.startsWith("/login");
-  const isPublicAuthRoute = isLogin
-    || request.nextUrl.pathname.startsWith("/imposta-password")
-    || request.nextUrl.pathname.startsWith("/auth/confirm")
-    || request.nextUrl.pathname.startsWith("/accesso-negato");
-
   if (!data?.claims && !isPublicAuthRoute) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";

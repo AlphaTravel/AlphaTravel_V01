@@ -1,14 +1,14 @@
 "use client";
 
-import { AlertTriangle, ChevronRight, Filter, Search, SlidersHorizontal } from "lucide-react";
+import { AlertTriangle, ChevronRight, Filter, Search } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
 import type { Pilgrim } from "@/lib/types";
 import { formatCurrency } from "@/lib/utils";
 import { StatusBadge } from "./status-badge";
 
-export function PilgrimTable({ data }: { data: Pilgrim[] }) {
-  const [query, setQuery] = useState("");
+export function PilgrimTable({ data, initialQuery = "", canViewPayments = false }: { data: Pilgrim[]; initialQuery?: string; canViewPayments?: boolean }) {
+  const [query, setQuery] = useState(initialQuery);
   const [status, setStatus] = useState("Tutti");
 
   const filtered = useMemo(() => {
@@ -47,7 +47,6 @@ export function PilgrimTable({ data }: { data: Pilgrim[] }) {
               <option>Da completare</option>
             </select>
           </label>
-          <button className="button button-secondary"><SlidersHorizontal size={15} /> Colonne</button>
         </div>
       </div>
 
@@ -58,7 +57,7 @@ export function PilgrimTable({ data }: { data: Pilgrim[] }) {
               <th>Pellegrino</th>
               <th>Viaggio e gruppo</th>
               <th>Organizzazione</th>
-              <th>Pagamento</th>
+              {canViewPayments ? <th>Pagamento</th> : null}
               <th>Stato</th>
               <th><span className="sr-only">Apri</span></th>
             </tr>
@@ -77,14 +76,14 @@ export function PilgrimTable({ data }: { data: Pilgrim[] }) {
                   <strong>{pilgrim.room ?? "Camera da assegnare"}</strong>
                   <small>{pilgrim.coachSeat ?? "Posto da assegnare"}</small>
                 </td>
-                <td>
+                {canViewPayments ? <td>
                   <strong>{formatCurrency(pilgrim.paid)} / {formatCurrency(pilgrim.total)}</strong>
                   <small><StatusBadge label={pilgrim.paymentStatus} /></small>
-                </td>
+                </td> : null}
                 <td>
                   <StatusBadge label={pilgrim.status} />
-                  {pilgrim.missingItems.length ? (
-                    <small className="warning-copy"><AlertTriangle size={12} /> {pilgrim.missingItems.length} elementi</small>
+                  {(canViewPayments ? pilgrim.missingItems : pilgrim.missingItems.filter((item) => item !== "Saldo")).length ? (
+                    <small className="warning-copy"><AlertTriangle size={12} /> {(canViewPayments ? pilgrim.missingItems : pilgrim.missingItems.filter((item) => item !== "Saldo")).length} elementi</small>
                   ) : null}
                 </td>
                 <td><Link className="row-link" href={`/pellegrini/${pilgrim.id}`} aria-label={`Apri ${pilgrim.name}`}><ChevronRight size={18} /></Link></td>
@@ -96,7 +95,7 @@ export function PilgrimTable({ data }: { data: Pilgrim[] }) {
 
       <div className="table-footer">
         <span>{filtered.length} di {data.length} pellegrini</span>
-        <span>I dati mostrati in modalità demo sono fittizi.</span>
+        <span>Dati visibili secondo il ruolo e l’organizzazione correnti.</span>
       </div>
     </section>
   );

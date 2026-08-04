@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, ChevronLeft, Info } from "lucide-react";
+import { ChevronLeft, Info } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -8,7 +8,6 @@ import { createTripAction } from "@/app/actions";
 
 export function TripForm() {
   const router = useRouter();
-  const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -22,13 +21,8 @@ export function TripForm() {
       setError(result.message);
       return;
     }
-    if (!result.demo) {
-      router.push("/viaggi");
-      router.refresh();
-      return;
-    }
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 3500);
+    router.push(result.id ? `/viaggi/${result.id}` : "/viaggi");
+    router.refresh();
   }
 
   return (
@@ -45,7 +39,6 @@ export function TripForm() {
           <div><p className="eyebrow">Nuovo viaggio</p><h1>Crea una partenza</h1><p>Definisci la base organizzativa; camere e mezzi verranno configurati dopo.</p></div>
           <div className="editor-actions"><Link className="button button-secondary" href="/viaggi">Annulla</Link><button className="button button-primary" disabled={loading} type="submit">{loading ? "Salvataggio…" : "Salva bozza"}</button></div>
         </div>
-        {saved ? <div className="success-banner"><Check size={17} /> Viaggio validato. Il salvataggio definitivo sarà attivo dopo il collegamento Supabase.</div> : null}
         {error ? <div className="form-error form-error-block">{error}</div> : null}
         <section className="form-card">
           <div className="form-card-title"><span>01</span><div><h2>Identità del viaggio</h2><p>Nome visibile agli operatori e destinazione principale.</p></div></div>
@@ -64,7 +57,6 @@ export function TripForm() {
             <label><span>Numero minimo</span><input type="number" name="minimum" min="1" defaultValue="30" /></label>
             <label><span>Capienza massima *</span><input required type="number" name="capacity" min="1" defaultValue="50" /></label>
             <label><span>Chiusura iscrizioni</span><input type="date" name="registrationDeadline" /></label>
-            <label><span>Responsabile</span><select name="manager"><option>Da assegnare</option><option>Elena Bianchi</option><option>Marco Neri</option><option>Lucia Ferri</option></select></label>
           </div>
         </section>
         <section className="form-card">
@@ -77,14 +69,7 @@ export function TripForm() {
           </div>
           <div className="inline-info"><Info size={16} /> Non vengono gestiti dati di carte: i pagamenti online useranno un fornitore certificato esterno.</div>
         </section>
-        <section className="form-card">
-          <div className="form-card-title"><span>04</span><div><h2>Servizi iniziali</h2><p>Seleziona cosa predisporre automaticamente.</p></div></div>
-          <div className="checkbox-grid">
-            {["Camere e rooming list", "Pullman e posti", "Programma giornaliero", "Camminate e difficoltà", "Pagamenti e scadenze", "Documenti e checklist"].map((item) => (
-              <label key={item}><input type="checkbox" defaultChecked /><span>{item}</span></label>
-            ))}
-          </div>
-        </section>
+        <section className="form-card"><div className="form-card-title"><span>04</span><div><h2>Organizzazione operativa</h2><p>Dopo la creazione potrai configurare realmente strutture, camere, mezzi, posti, iscrizioni e programma dalla pagina Logistica del viaggio.</p></div></div></section>
         <div className="editor-bottom"><span>Lo stato iniziale sarà “Bozza”.</span><button className="button button-primary" disabled={loading} type="submit">{loading ? "Creazione…" : "Crea viaggio"}</button></div>
       </div>
     </form>

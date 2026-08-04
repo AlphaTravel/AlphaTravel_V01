@@ -22,10 +22,7 @@ export function LoginForm() {
     const form = new FormData(event.currentTarget);
     const supabase = createClient();
 
-    if (!supabase) {
-      router.push("/dashboard");
-      return;
-    }
+    if (!supabase) return setError("Servizio di accesso non configurato. Contatta l’amministratore.");
 
     setLoading(true);
     const result = await loginWithUsernameAction(form);
@@ -64,8 +61,7 @@ export function LoginForm() {
           <label><span>Username</span><input required name="username" type="text" minLength={3} maxLength={32} pattern="[A-Za-z][A-Za-z0-9._-]{2,31}" autoCapitalize="none" spellCheck={false} autoComplete="username" placeholder="nome.utente" /></label>
           <label><span>Password</span><div className="password-field"><input required name="password" type={showPassword ? "text" : "password"} autoComplete="current-password" placeholder="••••••••••••" /><button type="button" onClick={() => setShowPassword((value) => !value)} aria-label={showPassword ? "Nascondi password" : "Mostra password"}>{showPassword ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>
           <div className="login-options"><span>Account disponibili solo su invito</span><span>Per il recupero contatta l’amministratore</span></div>
-          <button className="button button-primary login-submit" disabled={loading} type="submit"><LockKeyhole size={17} />{loading ? "Accesso…" : configured ? "Accedi" : "Entra nella demo"}<ArrowRight size={17} /></button>
-          {!configured ? <div className="demo-notice"><strong>Modalità demo</strong>Supabase non è ancora collegato: puoi entrare senza credenziali e provare l’interfaccia.</div> : null}
+          <button className="button button-primary login-submit" disabled={loading || !configured} type="submit"><LockKeyhole size={17} />{loading ? "Accesso…" : configured ? "Accedi" : "Servizio non configurato"}<ArrowRight size={17} /></button>
           <small className="login-legal">L’accesso è consentito esclusivamente agli utenti autorizzati. Tutte le operazioni sensibili vengono registrate.</small>
         </form>
       </section>

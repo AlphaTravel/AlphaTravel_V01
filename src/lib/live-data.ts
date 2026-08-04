@@ -1,6 +1,5 @@
 import "server-only";
 
-import { pilgrims as demoPilgrims, trips as demoTrips } from "./demo-data";
 import { createClient } from "./supabase/server";
 import type { AppRole, CurrentMember, MobilityLevel, PaymentStatus, Pilgrim, PilgrimStatus, Trip, TripStatus } from "./types";
 
@@ -39,11 +38,11 @@ function mobility(value: unknown): MobilityLevel {
 
 export async function getTrips(): Promise<Trip[]> {
   const supabase = await createClient();
-  if (!supabase) return demoTrips;
+  if (!supabase) return [];
 
   const { data, error } = await supabase
     .from("trips")
-    .select("id,code,title,destination,starts_on,ends_on,status,capacity,base_price,planned_walking_km,registrations(id,agreed_price,payments(amount,status)),accommodations(id),vehicles(id)")
+    .select("id,code,title,destination,starts_on,ends_on,status,capacity,base_price,planned_walking_km,registrations(id,status,agreed_price,payments(amount,status,due_on),room_assignments(id),seat_assignments(id),pilgrims(document_expiry)),accommodations(id),vehicles(id)")
     .order("starts_on", { ascending: true });
   if (error) {
     console.error("getTrips failed", error.code);
@@ -52,27 +51,39 @@ export async function getTrips(): Promise<Trip[]> {
 
   const tones: Trip["coverTone"][] = ["blue", "amber", "violet", "teal"];
   return (data as unknown as Row[]).map((item, index) => {
-    const registrations = rows(item.registrations);
-    const collected = registrations.reduce((sum, registration) => sum + rows(registration.payments).filter((payment) => text(payment.status) === "paid").reduce((paymentSum, payment) => paymentSum + numberValue(payment.amount), 0), 0);
+    const registrations = rows(item.registrations).filter((registration) => text(registration.status) !== "cancelled");
+    const collected = registrations.reduce((sum, registration) => sum + rows(registration.payments).reduce((paymentSum, payment) => paymentSum + (["paid", "partial"].includes(text(payment.status)) ? numberValue(payment.amount) : text(payment.status) === "refunded" ? -numberValue(payment.amount) : 0), 0), 0);
     const revenue = registrations.reduce((sum, registration) => sum + numberValue(registration.agreed_price), 0);
+    const missingDocuments = registrations.filter((registration) => {
+      const pilgrim = row(registration.pilgrims);
+      const expiry = text(pilgrim?.document_expiry);
+      return !expiry || expiry < text(item.ends_on);
+    }).length;
+    const missingRooms = registrations.filter((registration) => rows(registration.room_assignments).length === 0).length;
+    const missingSeats = registrations.filter((registration) => rows(registration.seat_assignments).length === 0).length;
     return {
       id: text(item.id), code: text(item.code), title: text(item.title), destination: text(item.destination),
-      startDate: text(item.starts_on), endDate: text(item.ends_on), status: tripStatus(item.status),
+      startDate: text(item.starts_on), endDate: text(item.ends_on), status: tripStatus(item.status), basePrice: numberValue(item.base_price),
       participants: registrations.length, capacity: numberValue(item.capacity), revenue, collected,
       hotels: rows(item.accommodations).length, coaches: rows(item.vehicles).length,
       walkingKm: numberValue(item.planned_walking_km), leader: "Da assegnare", coverTone: tones[index % tones.length],
-      checklist: { documents: 0, rooms: 0, seats: 0, balances: Math.max(0, registrations.filter((registration) => rows(registration.payments).reduce((sum, payment) => sum + numberValue(payment.amount), 0) < numberValue(registration.agreed_price)).length) },
+      checklist: {
+        documents: missingDocuments,
+        rooms: missingRooms,
+        seats: missingSeats,
+        balances: registrations.filter((registration) => rows(registration.payments).reduce((sum, payment) => sum + (["paid", "partial"].includes(text(payment.status)) ? numberValue(payment.amount) : text(payment.status) === "refunded" ? -numberValue(payment.amount) : 0), 0) < numberValue(registration.agreed_price)).length,
+      },
     };
   });
 }
 
 export async function getPilgrims(): Promise<Pilgrim[]> {
   const supabase = await createClient();
-  if (!supabase) return demoPilgrims;
+  if (!supabase) return [];
 
   const { data, error } = await supabase
     .from("pilgrims")
-    .select("id,first_name,last_name,email,phone,birth_date,city,document_expiry,pilgrim_health_profiles(mobility,indicative_walking_km,dietary_requirements,allergies),emergency_contacts(name,phone,is_primary),registrations(id,trip_id,status,agreed_price,notes,trips(title),payments(amount,status))")
+    .select("id,first_name,last_name,email,phone,birth_date,city,document_expiry,pilgrim_health_profiles(mobility,indicative_walking_km,dietary_requirements,allergies),emergency_contacts(name,phone,is_primary),registrations(id,trip_id,status,agreed_price,notes,trips(title),trip_groups(name),payments(amount,status),room_assignments(rooms(room_number,accommodations(name))),seat_assignments(vehicle_seats(seat_label,vehicles(name))))")
     .is("archived_at", null)
     .order("last_name", { ascending: true });
   if (error) {
@@ -85,10 +96,17 @@ export async function getPilgrims(): Promise<Pilgrim[]> {
     const lastName = text(item.last_name);
     const registration = rows(item.registrations)[0];
     const trip = row(registration?.trips);
+    const group = row(registration?.trip_groups);
     const health = row(item.pilgrim_health_profiles);
     const contact = rows(item.emergency_contacts).find((entry) => entry.is_primary === true) ?? rows(item.emergency_contacts)[0];
     const paymentRows = rows(registration?.payments);
-    const paid = paymentRows.filter((payment) => text(payment.status) === "paid").reduce((sum, payment) => sum + numberValue(payment.amount), 0);
+    const roomAssignment = row(registration?.room_assignments);
+    const assignedRoom = row(roomAssignment?.rooms);
+    const accommodation = row(assignedRoom?.accommodations);
+    const seatAssignment = row(registration?.seat_assignments);
+    const assignedSeat = row(seatAssignment?.vehicle_seats);
+    const vehicle = row(assignedSeat?.vehicles);
+    const paid = paymentRows.reduce((sum, payment) => sum + (["paid", "partial"].includes(text(payment.status)) ? numberValue(payment.amount) : text(payment.status) === "refunded" ? -numberValue(payment.amount) : 0), 0);
     const total = numberValue(registration?.agreed_price);
     let paymentStatus: PaymentStatus = "Da pagare";
     if (total > 0 && paid >= total) paymentStatus = "Pagato";
@@ -98,24 +116,21 @@ export async function getPilgrims(): Promise<Pilgrim[]> {
     return {
       id: text(item.id), initials: `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase(), name: `${firstName} ${lastName}`.trim(),
       email: text(item.email, "Email non indicata"), phone: text(item.phone, "Telefono non indicato"), birthDate: text(item.birth_date, "1900-01-01"), city: text(item.city, "—"),
-      group: text(registration?.notes, "Nessun gruppo"), tripId: text(registration?.trip_id), tripName: text(trip?.title, "Non iscritto"), status: pilgrimStatus(registration?.status),
-      paymentStatus, paid, total, room: null, coachSeat: null, dietary, mobility: mobility(health?.mobility), walkingKm: numberValue(health?.indicative_walking_km),
+      group: text(group?.name, text(registration?.notes, "Nessun gruppo")), tripId: text(registration?.trip_id), tripName: text(trip?.title, "Non iscritto"), status: pilgrimStatus(registration?.status),
+      paymentStatus,
+      paid,
+      total,
+      room: assignedRoom ? `${text(accommodation?.name, "Struttura")} · ${text(assignedRoom.room_number)}` : null,
+      coachSeat: assignedSeat ? `${text(vehicle?.name, "Mezzo")} · ${text(assignedSeat.seat_label)}` : null,
+      dietary, mobility: mobility(health?.mobility), walkingKm: numberValue(health?.indicative_walking_km),
       missingItems: needs, emergencyContact: contact ? `${text(contact.name)} · ${text(contact.phone)}` : "Non indicato", documentExpiry: text(item.document_expiry, "1900-01-01"),
     };
   });
 }
 
 export async function getCurrentMember(): Promise<CurrentMember | null> {
-  const fallback: CurrentMember = {
-    id: "demo-admin",
-    organizationId: "demo-organization",
-    name: "Federico",
-    role: "Amministratore",
-    roleKey: "admin",
-    initials: "FG",
-  };
   const supabase = await createClient();
-  if (!supabase) return fallback;
+  if (!supabase) return null;
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) return null;
   const { data, error } = await supabase

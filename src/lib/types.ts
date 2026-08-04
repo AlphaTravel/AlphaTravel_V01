@@ -50,6 +50,7 @@ export interface Trip {
   capacity: number;
   revenue: number;
   collected: number;
+  basePrice?: number;
   hotels: number;
   coaches: number;
   walkingKm: number;

@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { z } from "zod";
+import { getCurrentMember } from "@/lib/live-data";
 import { createClient } from "@/lib/supabase/server";
 
-export type FormActionResult = { ok: boolean; demo?: boolean; id?: string; message: string };
+export type FormActionResult = { ok: boolean; id?: string; message: string };
 
 const optionalText = z.string().trim().max(1000).optional().default("");
 const pilgrimSchema = z.object({
@@ -53,6 +54,26 @@ const tripSchema = z.object({
 }).refine((value) => value.endDate >= value.startDate, { message: "La data di rientro precede la partenza." })
   .refine((value) => value.capacity >= value.minimum, { message: "La capienza è inferiore al numero minimo." });
 
+const updatePilgrimSchema = pilgrimSchema.extend({ pilgrimId: z.uuid() });
+const updateTripSchema = z.object({
+  tripId: z.uuid(),
+  title: z.string().trim().min(3).max(160),
+  code: z.string().trim().regex(/^[A-Za-z0-9-]{3,20}$/),
+  destination: z.string().trim().min(2).max(160),
+  description: optionalText,
+  startDate: z.iso.date(),
+  endDate: z.iso.date(),
+  minimum: z.coerce.number().int().min(1).max(5000),
+  capacity: z.coerce.number().int().min(1).max(5000),
+  registrationDeadline: z.union([z.iso.date(), z.literal("")]),
+  price: z.coerce.number().min(0).max(1000000),
+  deposit: z.union([z.coerce.number().min(0).max(1000000), z.literal("")]),
+  singleSupplement: z.union([z.coerce.number().min(0).max(1000000), z.literal("")]),
+  balanceDeadline: z.union([z.iso.date(), z.literal("")]),
+  walkingKm: z.coerce.number().min(0).max(10000),
+}).refine((value) => value.endDate >= value.startDate, { message: "La data di rientro precede la partenza." })
+  .refine((value) => value.capacity >= value.minimum, { message: "La capienza è inferiore al numero minimo." });
+
 function formValues(formData: FormData) {
   return Object.fromEntries(formData.entries());
 }
@@ -70,11 +91,8 @@ export async function createPilgrimAction(formData: FormData): Promise<FormActio
   });
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Controlla i dati inseriti." };
 
-  const supabase = await createClient();
-  if (!supabase) return { ok: true, demo: true, message: "Dati validati in modalità demo." };
-
-  const { data: authData } = await supabase.auth.getUser();
-  if (!authData.user) return { ok: false, message: "Sessione scaduta. Accedi nuovamente." };
+  const [member, supabase] = await Promise.all([getCurrentMember(), createClient()]);
+  if (!member || !supabase || !["admin", "manager", "operator"].includes(member.roleKey)) return { ok: false, message: "Non hai i permessi per creare pellegrini." };
   const { data, error } = await supabase.rpc("create_pilgrim_with_details", { payload: parsed.data });
   if (error) {
     console.error("create_pilgrim_with_details failed", error.code);
@@ -89,11 +107,8 @@ export async function createTripAction(formData: FormData): Promise<FormActionRe
   const parsed = tripSchema.safeParse(formValues(formData));
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Controlla i dati inseriti." };
 
-  const supabase = await createClient();
-  if (!supabase) return { ok: true, demo: true, message: "Dati validati in modalità demo." };
-
-  const { data: authData } = await supabase.auth.getUser();
-  if (!authData.user) return { ok: false, message: "Sessione scaduta. Accedi nuovamente." };
+  const [member, supabase] = await Promise.all([getCurrentMember(), createClient()]);
+  if (!member || !supabase || !["admin", "manager", "operator"].includes(member.roleKey)) return { ok: false, message: "Non hai i permessi per creare viaggi." };
   const { data, error } = await supabase.rpc("create_trip", { payload: parsed.data });
   if (error) {
     console.error("create_trip failed", error.code);
@@ -102,6 +117,44 @@ export async function createTripAction(formData: FormData): Promise<FormActionRe
   revalidatePath("/viaggi");
   revalidatePath("/dashboard");
   return { ok: true, id: String(data), message: "Viaggio creato." };
+}
+
+export async function updatePilgrimAction(formData: FormData): Promise<FormActionResult> {
+  const parsed = updatePilgrimSchema.safeParse({
+    ...formValues(formData),
+    privacyDelivered: checkbox(formData, "privacyDelivered"),
+    healthConsent: checkbox(formData, "healthConsent"),
+    operationalMessagesAllowed: checkbox(formData, "operationalMessagesAllowed"),
+  });
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Controlla i dati inseriti." };
+  const [member, supabase] = await Promise.all([getCurrentMember(), createClient()]);
+  if (!member || !supabase || !["admin", "manager", "operator"].includes(member.roleKey)) return { ok: false, message: "Non hai i permessi per modificare i pellegrini." };
+
+  const { error } = await supabase.rpc("update_pilgrim_with_details", { payload: parsed.data });
+  if (error) {
+    console.error("update_pilgrim_with_details failed", error.code);
+    return { ok: false, message: error.code === "23505" ? "Codice fiscale già utilizzato." : "Pellegrino non aggiornato; nessuna modifica parziale è stata mantenuta." };
+  }
+  revalidatePath(`/pellegrini/${parsed.data.pilgrimId}`);
+  revalidatePath("/pellegrini");
+  revalidatePath("/dashboard");
+  return { ok: true, id: parsed.data.pilgrimId, message: "Pellegrino aggiornato." };
+}
+
+export async function updateTripAction(formData: FormData): Promise<FormActionResult> {
+  const parsed = updateTripSchema.safeParse(formValues(formData));
+  if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Controlla i dati inseriti." };
+  const [member, supabase] = await Promise.all([getCurrentMember(), createClient()]);
+  if (!member || !supabase || !["admin", "manager", "operator"].includes(member.roleKey)) return { ok: false, message: "Non hai i permessi per modificare i viaggi." };
+  const { error } = await supabase.from("trips").update({ code: parsed.data.code.toUpperCase(), title: parsed.data.title, destination: parsed.data.destination, description: parsed.data.description || null, starts_on: parsed.data.startDate, ends_on: parsed.data.endDate, registration_deadline: parsed.data.registrationDeadline || null, minimum_participants: parsed.data.minimum, capacity: parsed.data.capacity, base_price: parsed.data.price, deposit_amount: parsed.data.deposit || 0, single_room_supplement: parsed.data.singleSupplement || 0, balance_due_on: parsed.data.balanceDeadline || null, planned_walking_km: parsed.data.walkingKm }).eq("id", parsed.data.tripId).eq("organization_id", member.organizationId);
+  if (error) {
+    console.error("updateTripAction failed", error.code);
+    return { ok: false, message: error.code === "23505" ? "Codice viaggio già utilizzato." : "Viaggio non aggiornato." };
+  }
+  revalidatePath(`/viaggi/${parsed.data.tripId}`);
+  revalidatePath("/viaggi");
+  revalidatePath("/dashboard");
+  return { ok: true, id: parsed.data.tripId, message: "Viaggio aggiornato." };
 }
 
 export async function signOutAction() {

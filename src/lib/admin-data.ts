@@ -46,9 +46,7 @@ export async function getAdminDashboardData() {
   const members = (membersResult.data ?? []) as AdminMemberRow[];
   const nameByUserId = new Map(members.map((member) => [member.user_id, member.display_name]));
   const payments = (paymentsResult.data ?? []) as Array<{ amount: number | string; status: string }>;
-  const collected = payments
-    .filter((payment) => payment.status === "paid")
-    .reduce((sum, payment) => sum + Number(payment.amount || 0), 0);
+  const collected = payments.reduce((sum, payment) => sum + (["paid", "partial"].includes(payment.status) ? Number(payment.amount || 0) : payment.status === "refunded" ? -Number(payment.amount || 0) : 0), 0);
 
   return {
     stats: {

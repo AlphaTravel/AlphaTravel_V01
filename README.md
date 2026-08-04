@@ -19,7 +19,7 @@ cp .env.example .env.local
 pnpm dev
 ```
 
-Senza variabili Supabase l’app si apre in modalità demo e non salva dati.
+Senza variabili Supabase l’app resta bloccata in modo sicuro: non esiste una modalità demo con privilegi impliciti.
 
 ## Configurazione Supabase
 
@@ -70,4 +70,4 @@ pnpm test:run
 pnpm build
 ```
 
-La cartella `src/lib/demo-data.ts` contiene esclusivamente dati fittizi e viene usata solo quando Supabase non è configurato. Con Supabase attivo, elenchi e creazione di pellegrini e viaggi lavorano sul database reale. Consulta anche [SECURITY.md](./SECURITY.md).
+Tutte le schermate operative leggono e scrivono il database reale: pellegrini, viaggi, gruppi, camere, mezzi, posti, programma, pagamenti, impostazioni e documenti privati. Consulta anche [SECURITY.md](./SECURITY.md).

@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, Check, ChevronLeft, ShieldCheck } from "lucide-react";
+import { AlertTriangle, ChevronLeft, ShieldCheck } from "lucide-react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useState, type FormEvent } from "react";
@@ -10,7 +10,6 @@ const sections = ["Anagrafica", "Contatti", "Esigenze", "Viaggio", "Consensi"];
 
 export function PilgrimForm({ tripOptions = [] }: { tripOptions?: Array<{ id: string; title: string }> }) {
   const router = useRouter();
-  const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
@@ -24,13 +23,8 @@ export function PilgrimForm({ tripOptions = [] }: { tripOptions?: Array<{ id: st
       setError(result.message);
       return;
     }
-    if (!result.demo) {
-      router.push("/pellegrini");
-      router.refresh();
-      return;
-    }
-    setSaved(true);
-    window.setTimeout(() => setSaved(false), 3500);
+    router.push(result.id ? `/pellegrini/${result.id}` : "/pellegrini");
+    router.refresh();
   }
 
   return (
@@ -52,7 +46,6 @@ export function PilgrimForm({ tripOptions = [] }: { tripOptions?: Array<{ id: st
           <div className="editor-actions"><Link className="button button-secondary" href="/pellegrini">Annulla</Link><button className="button button-primary" disabled={loading} type="submit">{loading ? "Salvataggio…" : "Salva pellegrino"}</button></div>
         </div>
 
-        {saved ? <div className="success-banner"><Check size={17} /> Bozza validata. Collega Supabase per salvare definitivamente il record.</div> : null}
         {error ? <div className="form-error form-error-block">{error}</div> : null}
 
         <section className="form-card">
@@ -111,7 +104,7 @@ export function PilgrimForm({ tripOptions = [] }: { tripOptions?: Array<{ id: st
           </div>
         </section>
 
-        <div className="editor-bottom"><span>Il salvataggio reale si attiva automaticamente con Supabase.</span><button className="button button-primary" disabled={loading} type="submit">{loading ? "Salvataggio…" : "Salva pellegrino"}</button></div>
+        <div className="editor-bottom"><span>I dati verranno salvati nel workspace protetto.</span><button className="button button-primary" disabled={loading} type="submit">{loading ? "Salvataggio…" : "Salva pellegrino"}</button></div>
       </div>
     </form>
   );
