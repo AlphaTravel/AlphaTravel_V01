@@ -22,9 +22,10 @@ describe("operational server-action authorization", () => {
     expect(paymentActions).toContain("organization_id: member.organizationId");
   });
 
-  it("requires an administrator with aal2 before organization changes", () => {
+  it("requires an authenticated office administrator before organization changes", () => {
     expect(settingsActions).toContain('member.roleKey !== "admin"');
-    expect(settingsActions).toContain('aal?.currentLevel !== "aal2"');
+    expect(settingsActions).not.toContain("auth.mfa");
+    expect(settingsActions).toContain('.eq("id", member.organizationId)');
   });
 
   it("checks roles before editing pilgrims and trips", () => {

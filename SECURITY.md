@@ -10,8 +10,8 @@ Nessun software può offrire una garanzia assoluta di sicurezza. AlphaTravel è 
 - documenti in bucket Supabase privato, con formato, dimensione e percorso controllati;
 - audit senza copie del contenuto sensibile;
 - cookie di sessione gestiti dal server, route protette, risposte non memorizzabili e CSP con nonce univoco per richiesta;
-- area amministrativa visibile solo al ruolo `admin` e caricata esclusivamente dopo una verifica MFA AAL2;
-- inviti eseguiti in una Edge Function Supabase con JWT verificato, controllo del ruolo, MFA, rate limit e rollback in caso di errore;
+- area `/admin` separata dal workspace e accessibile soltanto agli utenti presenti nella tabella protetta `platform_admins`;
+- creazione e modifica di uffici, account e password eseguite in una Edge Function Supabase con JWT verificato, controllo super-admin, origine consentita e rollback delle creazioni incomplete;
 - login tramite username risolto esclusivamente lato server, con email interna non restituita al browser, risposte anti-enumerazione e rate limit dedicato;
 - nessuna chiave segreta o `service_role` presente nell’applicazione Vercel o nel browser;
 - protezione database che impedisce di sospendere o declassare l’ultimo amministratore attivo;
@@ -23,8 +23,8 @@ Nessun software può offrire una garanzia assoluta di sicurezza. AlphaTravel è 
 ## Prima dell’uso reale
 
 1. Far verificare privacy, informative, consensi, tempi di conservazione e nomine GDPR da un consulente competente.
-2. Estendere l’obbligo MFA a responsabili e operatori che trattano dati sanitari; per gli amministratori è già obbligatorio.
-3. Mantenere disabilitate le registrazioni pubbliche in Supabase Auth; gli utenti devono essere invitati dall’amministratore.
+2. Valutare in futuro MFA o passkey come opzione per gli utenti che trattano dati sanitari, se compatibile con il flusso operativo richiesto.
+3. Mantenere disabilitate le registrazioni pubbliche in Supabase Auth; gli account devono essere creati dal controllo piattaforma.
 4. Configurare un SMTP aziendale e inviti con conferma esplicita o OTP, così i controlli antispam non possono consumare i link monouso.
 5. Configurare backup, Point-in-Time Recovery e avvisi di sicurezza del progetto Supabase.
 6. Impostare log retention e un processo di revoca immediata degli account.

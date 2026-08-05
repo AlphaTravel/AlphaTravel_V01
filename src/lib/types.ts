@@ -11,6 +11,7 @@ export interface CurrentMember {
   role: string;
   roleKey: AppRole;
   initials: string;
+  isPlatformAdmin: boolean;
 }
 
 export interface Pilgrim {

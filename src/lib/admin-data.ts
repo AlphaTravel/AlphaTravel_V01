@@ -1,80 +1,112 @@
 import "server-only";
 
 import { createClient } from "./supabase/server";
-import { roleLabels } from "./roles";
 import type { AppRole } from "./types";
 
-type AdminMemberRow = {
-  user_id: string;
-  display_name: string;
-  email: string | null;
+export type PlatformOfficeMember = {
+  userId: string;
   username: string;
+  email: string;
+  displayName: string;
   role: AppRole;
-  is_active: boolean;
-  created_at: string;
+  isActive: boolean;
+  createdAt: string;
+  lastSignInAt: string | null;
 };
 
-type AuditRow = {
-  id: number;
-  actor_user_id: string | null;
-  action: string;
-  table_name: string;
-  occurred_at: string;
+export type PlatformOffice = {
+  id: string;
+  name: string;
+  slug: string;
+  contactEmail: string;
+  phone: string;
+  timezone: string;
+  currency: string;
+  plan: "starter" | "professional" | "enterprise";
+  subscriptionStatus: "trial" | "active" | "past_due" | "cancelled";
+  isActive: boolean;
+  userLimit: number;
+  renewalDate: string | null;
+  notes: string;
+  createdAt: string;
+  memberCount: number;
+  pilgrimCount: number;
+  tripCount: number;
+  registrationCount: number;
+  collected: number;
+  isPlatformOffice: boolean;
+  members: PlatformOfficeMember[];
 };
 
-export async function getAdminDashboardData() {
-  const supabase = await createClient();
-  if (!supabase) throw new Error("Supabase non configurato");
+export type PlatformDashboardData = {
+  stats: {
+    totalOffices: number;
+    activeOffices: number;
+    activeUsers: number;
+    pilgrims: number;
+    trips: number;
+    registrations: number;
+    collected: number;
+  };
+  offices: PlatformOffice[];
+  monthly: Array<{
+    month: string;
+    offices: number;
+    pilgrims: number;
+    trips: number;
+    collected: number;
+  }>;
+  activity: Array<{
+    id: number;
+    action: string;
+    officeName: string;
+    actorName: string;
+    occurredAt: string;
+  }>;
+};
 
-  const [membersResult, pilgrimsResult, tripsResult, registrationsResult, documentsResult, paymentsResult, auditsResult] = await Promise.all([
-    supabase.from("organization_members").select("user_id,display_name,email,username,role,is_active,created_at").order("display_name"),
-    supabase.from("pilgrims").select("id", { count: "exact", head: true }).is("archived_at", null),
-    supabase.from("trips").select("id", { count: "exact", head: true }),
-    supabase.from("registrations").select("id", { count: "exact", head: true }).neq("status", "cancelled"),
-    supabase.from("documents").select("id", { count: "exact", head: true }),
-    supabase.from("payments").select("amount,status"),
-    supabase.from("audit_logs").select("id,actor_user_id,action,table_name,occurred_at").order("occurred_at", { ascending: false }).limit(30),
-  ]);
+type PlatformAdminIdentity = {
+  userId: string;
+  displayName: string;
+  email: string;
+};
 
-  const firstError = [membersResult, pilgrimsResult, tripsResult, registrationsResult, documentsResult, paymentsResult, auditsResult]
-    .find((result) => result.error)?.error;
-  if (firstError) {
-    console.error("getAdminDashboardData failed", firstError.code);
-    throw new Error("Impossibile caricare l’amministrazione");
-  }
-
-  const members = (membersResult.data ?? []) as AdminMemberRow[];
-  const nameByUserId = new Map(members.map((member) => [member.user_id, member.display_name]));
-  const payments = (paymentsResult.data ?? []) as Array<{ amount: number | string; status: string }>;
-  const collected = payments.reduce((sum, payment) => sum + (["paid", "partial"].includes(payment.status) ? Number(payment.amount || 0) : payment.status === "refunded" ? -Number(payment.amount || 0) : 0), 0);
-
+function emptyDashboard(): PlatformDashboardData {
   return {
-    stats: {
-      activeUsers: members.filter((member) => member.is_active).length,
-      pilgrims: pilgrimsResult.count ?? 0,
-      trips: tripsResult.count ?? 0,
-      registrations: registrationsResult.count ?? 0,
-      documents: documentsResult.count ?? 0,
-      collected,
-    },
-    members: members.map((member) => ({
-      userId: member.user_id,
-      displayName: member.display_name,
-      email: member.email ?? "Email non disponibile",
-      username: member.username,
-      roleKey: member.role,
-      roleLabel: roleLabels[member.role],
-      isActive: member.is_active,
-      createdAt: member.created_at,
-    })),
-    audits: ((auditsResult.data ?? []) as AuditRow[]).map((audit) => ({
-      id: audit.id,
-      actor: audit.actor_user_id ? nameByUserId.get(audit.actor_user_id) ?? "Utente autorizzato" : "Sistema",
-      action: audit.action,
-      tableName: audit.table_name,
-      occurredAt: audit.occurred_at,
-    })),
+    stats: { totalOffices: 0, activeOffices: 0, activeUsers: 0, pilgrims: 0, trips: 0, registrations: 0, collected: 0 },
+    offices: [],
+    monthly: [],
+    activity: [],
   };
 }
 
-export type AdminDashboardData = Awaited<ReturnType<typeof getAdminDashboardData>>;
+export async function getCurrentPlatformAdmin(): Promise<PlatformAdminIdentity | null> {
+  const supabase = await createClient();
+  if (!supabase) return null;
+  const { data: authData } = await supabase.auth.getUser();
+  if (!authData.user) return null;
+  const { data, error } = await supabase
+    .from("platform_admins")
+    .select("user_id,display_name")
+    .eq("user_id", authData.user.id)
+    .eq("is_active", true)
+    .maybeSingle();
+  if (error || !data) return null;
+  return {
+    userId: String(data.user_id),
+    displayName: String(data.display_name),
+    email: authData.user.email ?? "",
+  };
+}
+
+export async function getAdminDashboardData(): Promise<PlatformDashboardData> {
+  const supabase = await createClient();
+  if (!supabase) throw new Error("Supabase non configurato");
+  const { data, error } = await supabase.rpc("platform_dashboard");
+  if (error) {
+    console.error("platform_dashboard failed", error.code);
+    throw new Error("Impossibile caricare il controllo piattaforma");
+  }
+  if (!data || typeof data !== "object" || Array.isArray(data)) return emptyDashboard();
+  return data as unknown as PlatformDashboardData;
+}

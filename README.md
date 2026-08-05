@@ -36,7 +36,7 @@ pnpm supabase functions deploy admin-users --use-api
 pnpm supabase functions deploy username-login --no-verify-jwt --use-api
 ```
 
-Le migration creano schema, RLS, bucket privato, comandi transazionali e controllo amministrativo. Gli utenti accedono con uno username globale; l’email Supabase resta un’identità interna usata solo per attivazione e recupero e non viene esposta dal servizio di login. La configurazione Auth mantiene attivo il provider email sottostante, ma blocca globalmente il signup pubblico; richiede inoltre password forti e abilita TOTP. Il primo amministratore usa lo username `admin`; tutti gli utenti successivi ricevono uno username dall’area **Amministrazione**.
+Le migration creano schema, RLS, bucket privato, comandi transazionali e un controllo amministrativo separato dal workspace degli uffici. Gli utenti accedono con uno username globale; l’email Supabase resta un’identità interna e non viene esposta dal servizio di login. Il signup pubblico è bloccato. Il super amministratore gestisce da `/admin` uffici, piani, sospensioni, utenti, ruoli e password; l’accesso usa username e password senza passaggio TOTP obbligatorio.
 
 Il servizio `username-login` è pubblico perché precede l’autenticazione, ma accetta soltanto richieste provenienti dal dominio configurato, non rivela se un account esiste e applica un limite di cinque tentativi ogni 15 minuti per coppia username/origine di rete. `LOGIN_RATE_LIMIT_SECRET` deve essere generato casualmente, conservato soltanto nei secret Supabase e mai inserito in Git o Vercel.
 
@@ -50,7 +50,7 @@ NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=sb_publishable_...
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ```
 
-`NEXT_PUBLIC_SITE_URL` è consigliata e diventa necessaria quando si cambia dominio. Non aggiungere mai una chiave segreta o `service_role` a Vercel: l’operazione privilegiata di invito vive esclusivamente in una Edge Function Supabase autenticata e protetta da MFA.
+`NEXT_PUBLIC_SITE_URL` è consigliata e diventa necessaria quando si cambia dominio. Non aggiungere mai una chiave segreta o `service_role` a Vercel: le operazioni privilegiate vivono esclusivamente in una Edge Function Supabase autenticata, limitata al super amministratore e con controllo dell’origine.
 
 ## Deploy Vercel
 

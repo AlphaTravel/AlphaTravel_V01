@@ -75,14 +75,14 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
               </Link>
             );
           })}
-          {user.roleKey === "admin" ? (
+          {user.isPlatformAdmin ? (
             <Link
               href="/admin"
               className={cn("nav-link", pathname.startsWith("/admin") && "nav-link-active")}
               onClick={() => setOpen(false)}
             >
               <ShieldCheck size={18} strokeWidth={2} />
-              <span>Amministrazione</span>
+              <span>Piattaforma</span>
             </Link>
           ) : null}
         </nav>

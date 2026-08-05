@@ -38,6 +38,10 @@ const atomicUpdateMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/202608040002_atomic_pilgrim_updates.sql"),
   "utf8",
 );
+const platformMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/202608050001_platform_control_plane.sql"),
+  "utf8",
+);
 const edgeFunction = readFileSync(
   resolve(process.cwd(), "supabase/functions/admin-users/index.ts"),
   "utf8",
@@ -100,10 +104,19 @@ describe("database security migration", () => {
     expect(grantsMigration).not.toMatch(/grant .* on table public\.[a-z_]+ to anon;/);
   });
 
-  it("requires MFA for administrative reads and role changes", () => {
+  it("historically hardened administrative reads before the platform split", () => {
     expect(adminMigration).toContain("coalesce(auth.jwt() ->> 'aal', 'aal1') = 'aal2'");
     expect(adminMigration).toContain("coalesce(auth.jwt() ->> 'aal', 'aal1') <> 'aal2'");
     expect(adminMigration).toContain("revoke insert, update, delete on table public.organization_members from authenticated;");
+  });
+
+  it("separates platform administrators and removes the MFA dependency", () => {
+    expect(platformMigration).toContain("create table public.platform_admins");
+    expect(platformMigration).toContain("create or replace function public.is_platform_admin()");
+    expect(platformMigration).toContain("create or replace function public.platform_dashboard()");
+    expect(platformMigration).toContain("drop policy if exists audit_admin_mfa_read");
+    const replacement = platformMigration.split("create or replace function public.admin_update_member(")[1];
+    expect(replacement).not.toContain("auth.jwt() ->> 'aal'");
   });
 
   it("prevents removal of the last active administrator", () => {
@@ -111,10 +124,18 @@ describe("database security migration", () => {
     expect(adminMigration).toContain("At least one active administrator is required");
   });
 
-  it("keeps privileged invitation logic inside an authenticated Edge Function", () => {
-    expect(edgeFunction).toContain('withSupabase({ auth: "user" }');
-    expect(edgeFunction).toContain('jwtClaims?.aal !== "aal2"');
-    expect(edgeFunction).not.toContain("SUPABASE_SERVICE_ROLE_KEY");
+  it("keeps platform mutations inside a platform-admin authenticated Edge Function", () => {
+    expect(edgeFunction).toContain("admin.auth.getUser(bearer)");
+    expect(edgeFunction).toContain('.from("platform_admins")');
+    expect(edgeFunction).toContain('operation === "create_office"');
+    expect(edgeFunction).toContain('operation === "update_member"');
+    expect(edgeFunction).not.toContain("aal2");
+  });
+
+  it("blocks suspended offices in both login resolution and tenant RLS helpers", () => {
+    expect(platformMigration).toContain("member.is_active and organization.is_active");
+    expect(platformMigration).toContain("and organization.is_active");
+    expect(platformMigration).toContain("create policy members_self_read");
   });
 
   it("keeps usernames unique and login throttling private", () => {

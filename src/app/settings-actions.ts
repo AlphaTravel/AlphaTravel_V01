@@ -19,9 +19,6 @@ export async function updateOrganizationAction(formData: FormData): Promise<Sett
   const [member, supabase] = await Promise.all([getCurrentMember(), createClient()]);
   if (!member || !supabase || member.roleKey !== "admin") return { ok: false, message: "Solo un amministratore può modificare l’organizzazione." };
 
-  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  if (aal?.currentLevel !== "aal2") return { ok: false, message: "Verifica prima l’MFA nell’area Amministrazione." };
-
   const { error } = await supabase.from("organizations").update(parsed.data).eq("id", member.organizationId);
   if (error) {
     console.error("updateOrganizationAction failed", error.code);

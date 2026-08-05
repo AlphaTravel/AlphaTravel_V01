@@ -133,13 +133,21 @@ export async function getCurrentMember(): Promise<CurrentMember | null> {
   if (!supabase) return null;
   const { data: authData } = await supabase.auth.getUser();
   if (!authData.user) return null;
-  const { data, error } = await supabase
-    .from("organization_members")
-    .select("organization_id,user_id,display_name,role")
-    .eq("user_id", authData.user.id)
-    .eq("is_active", true)
-    .limit(1)
-    .maybeSingle();
+  const [{ data, error }, platformResult] = await Promise.all([
+    supabase
+      .from("organization_members")
+      .select("organization_id,user_id,display_name,role")
+      .eq("user_id", authData.user.id)
+      .eq("is_active", true)
+      .limit(1)
+      .maybeSingle(),
+    supabase
+      .from("platform_admins")
+      .select("user_id")
+      .eq("user_id", authData.user.id)
+      .eq("is_active", true)
+      .maybeSingle(),
+  ]);
   if (error || !data) return null;
   const member = data as unknown as Row;
   const name = text(member.display_name, authData.user.email ?? "Utente");
@@ -153,5 +161,6 @@ export async function getCurrentMember(): Promise<CurrentMember | null> {
     role: roles[roleKey] ?? "Utente",
     roleKey,
     initials,
+    isPlatformAdmin: Boolean(platformResult.data),
   };
 }

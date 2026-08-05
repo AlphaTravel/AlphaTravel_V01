@@ -28,7 +28,7 @@ export function OrganizationSettingsForm({ organization, canManage }: { organiza
         <label><span>Valuta</span><select name="currency" defaultValue={organization.currency} disabled={!canManage}><option value="EUR">EUR — Euro</option><option value="USD">USD — Dollaro</option><option value="GBP">GBP — Sterlina</option></select></label>
       </div>
       <div className="settings-actions"><button className="button button-primary" disabled={!canManage || busy} type="submit">{busy ? "Salvataggio…" : "Salva modifiche"}</button></div>
-      {!canManage ? <div className="inline-info">Solo gli amministratori con MFA verificata possono modificare questi dati.</div> : null}
+      {!canManage ? <div className="inline-info">Solo un amministratore dell’ufficio può modificare questi dati.</div> : null}
     </form>
   );
 }

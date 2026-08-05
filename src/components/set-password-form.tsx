@@ -6,11 +6,7 @@ import { useState, type FormEvent } from "react";
 import { createClient } from "@/lib/supabase/client";
 
 function isStrongPassword(value: string) {
-  return value.length >= 12
-    && /[a-z]/.test(value)
-    && /[A-Z]/.test(value)
-    && /\d/.test(value)
-    && /[^A-Za-z0-9]/.test(value);
+  return value.length >= 8 && /[A-Za-z]/.test(value) && /\d/.test(value);
 }
 
 export function SetPasswordForm() {
@@ -25,7 +21,7 @@ export function SetPasswordForm() {
     const password = String(form.get("password") ?? "");
     const confirmation = String(form.get("confirmation") ?? "");
     if (!isStrongPassword(password)) {
-      setError("Usa almeno 12 caratteri con maiuscola, minuscola, numero e simbolo.");
+      setError("Usa almeno 8 caratteri con una lettera e un numero.");
       return;
     }
     if (password !== confirmation) {
@@ -57,9 +53,9 @@ export function SetPasswordForm() {
     <form className="login-card" onSubmit={submit}>
       <div><p className="eyebrow">Attivazione account</p><h2>Scegli la password</h2><p>La password resta privata e non è visibile agli amministratori.</p></div>
       {error ? <div className="form-error">{error}</div> : null}
-      <label><span>Nuova password</span><div className="password-field"><input required name="password" minLength={12} type={show ? "text" : "password"} autoComplete="new-password" /><button type="button" onClick={() => setShow((value) => !value)} aria-label={show ? "Nascondi password" : "Mostra password"}>{show ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>
-      <label><span>Ripeti password</span><input required name="confirmation" minLength={12} type={show ? "text" : "password"} autoComplete="new-password" /></label>
-      <div className="password-rules"><ShieldCheck size={16} /><span>Minimo 12 caratteri, maiuscola, minuscola, numero e simbolo.</span></div>
+      <label><span>Nuova password</span><div className="password-field"><input required name="password" minLength={8} pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,128}" type={show ? "text" : "password"} autoComplete="new-password" /><button type="button" onClick={() => setShow((value) => !value)} aria-label={show ? "Nascondi password" : "Mostra password"}>{show ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>
+      <label><span>Ripeti password</span><input required name="confirmation" minLength={8} pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,128}" type={show ? "text" : "password"} autoComplete="new-password" /></label>
+      <div className="password-rules"><ShieldCheck size={16} /><span>Minimo 8 caratteri, con almeno una lettera e un numero.</span></div>
       <button className="button button-primary login-submit" disabled={busy} type="submit"><LockKeyhole size={17} />{busy ? "Salvataggio…" : "Attiva account"}<ArrowRight size={17} /></button>
     </form>
   );

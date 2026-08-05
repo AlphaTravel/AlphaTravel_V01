@@ -9,8 +9,7 @@ export async function getOrganizationSettings() {
   const supabase = await createClient();
   if (!member || !supabase) return null;
 
-  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-  const canManage = member.roleKey === "admin" && aal?.currentLevel === "aal2";
+  const canManage = member.roleKey === "admin";
   const [organizationResult, membersResult] = await Promise.all([
     supabase.from("organizations").select("id,name,timezone,currency").eq("id", member.organizationId).single(),
     supabase.from("organization_members").select("role,is_active").eq("organization_id", member.organizationId),

@@ -75,10 +75,17 @@ export async function loginWithUsernameAction(formData: FormData): Promise<Login
       return { ok: false, message: "Credenziali non valide oppure account non abilitato." };
     }
 
+    const { data: platformAdmin } = await supabase
+      .from("platform_admins")
+      .select("user_id")
+      .eq("user_id", sessionData.user.id)
+      .eq("is_active", true)
+      .maybeSingle();
+
     return {
       ok: true,
       message: "Accesso effettuato.",
-      redirectTo: postLoginPath(parsed.data.next, role.data),
+      redirectTo: postLoginPath(parsed.data.next, role.data, Boolean(platformAdmin)),
     };
   } catch {
     return { ok: false, message: "Servizio di accesso temporaneamente non disponibile." };

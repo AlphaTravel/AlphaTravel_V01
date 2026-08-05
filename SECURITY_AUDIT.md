@@ -1,6 +1,6 @@
 # Audit di sicurezza AlphaTravel
 
-Data: 4 agosto 2026
+Data: 5 agosto 2026
 Ambito: applicazione Next.js, Supabase Auth/PostgreSQL/Storage/Edge Functions, configurazione HTTP e dipendenze.
 
 ## Esito
@@ -11,13 +11,13 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 
 - Accesso **fail closed**: un utente autenticato ma senza membership attiva non entra nel workspace.
 - Eliminati il fallback e i dati demo: se Supabase non è configurato il workspace resta bloccato.
-- Area `/admin` autorizzata server-side per ruolo, non soltanto nascosta nell’interfaccia.
-- MFA TOTP AAL2 obbligatoria prima di caricare utenti, analitiche, audit o azioni amministrative.
-- Provider email attivo per l’accesso, ma signup pubblico globalmente disabilitato; account solo su invito con password scelta dall’utente.
-- Password: minimo 12 caratteri e complessità; OTP/inviti con scadenza 15 minuti.
+- Area `/admin` separata dal workspace, autorizzata server-side e database tramite `platform_admins`.
+- Rimosso il passaggio TOTP/MFA su richiesta del proprietario; accesso tramite username e password.
+- Signup pubblico globalmente disabilitato; account creati esclusivamente dalla console piattaforma.
+- Password: minimo 8 caratteri con lettera e numero, impostabile o modificabile dal super amministratore.
 - Rate limit Auth irrigidito; inviti amministrativi limitati anche dalla Edge Function.
 - Username univoci e normalizzati; risoluzione dell’identità solo nella Edge Function, token trasferiti esclusivamente al Server Action e tentativi memorizzati come HMAC senza IP o username in chiaro.
-- Scritture dirette sui ruoli revocate; modifica consentita solo da RPC vincolata a admin + MFA.
+- Scritture dirette sui ruoli revocate; le modifiche piattaforma passano dalla Edge Function autenticata e quelle dell’ufficio restano vincolate al ruolo admin.
 - Impossibile eliminare, sospendere o declassare l’ultimo amministratore attivo.
 - Chiave privilegiata confinata nell’infrastruttura Supabase; non presente in Vercel, browser o repository.
 - CSP per-request con nonce e `strict-dynamic`; script inline non autorizzati bloccati.
@@ -32,13 +32,13 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 
 ## Verifiche eseguite
 
-- 10 migration remote sincronizzate con il repository.
-- Supabase SQL Editor: 10 migration applicate e registrate; funzioni e trigger creati senza errori.
+- 11 migration remote sincronizzate con il repository.
+- Supabase CLI: 11 migration applicate e registrate; schema remoto verificato senza errori.
 - Edge Function senza autenticazione: risposta `401`.
 - `pnpm audit --prod`: nessuna vulnerabilità nota.
 - ESLint: zero warning/errori.
 - TypeScript: zero errori.
-- 57 test automatici superati in 8 suite.
+- 63 test automatici superati in 9 suite, incluso l’inventario strutturale di pulsanti, form e collegamenti.
 - Build Next.js di produzione completata.
 - 26 route dinamiche compilate, incluse logistica, modifica, documenti privati, pagamenti e impostazioni.
 - Test locale della CSP: nonce della risposta presente sugli script Next.js e cache disabilitata.
@@ -51,5 +51,5 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 4. Valutare CAPTCHA/Turnstile sul login dopo aver creato una chiave dedicata.
 5. Configurare backup, prove periodiche di ripristino, retention degli audit e procedura di risposta agli incidenti.
 6. Completare DPIA, informative, consensi, nomine e tempi di conservazione con un consulente GDPR.
-7. Abilitare MFA anche ai ruoli che accedono a dati sanitari e documenti riservati.
+7. Rivalutare MFA o passkey opzionali quando il prodotto verrà aperto a più organizzazioni reali.
 8. Aggiungere il dominio definitivo alle allowlist Supabase e aggiornare `NEXT_PUBLIC_SITE_URL` quando il dominio cambia.
