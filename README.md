@@ -36,7 +36,7 @@ pnpm supabase functions deploy admin-users --use-api
 pnpm supabase functions deploy username-login --no-verify-jwt --use-api
 ```
 
-Le migration creano schema, RLS, bucket privato, comandi transazionali e un controllo amministrativo separato dal workspace degli uffici. Gli utenti accedono con uno username globale; l’email Supabase resta un’identità interna e non viene esposta dal servizio di login. Il signup pubblico è bloccato. Il super amministratore gestisce da `/admin` uffici, piani, sospensioni, utenti, ruoli e password; l’accesso usa username e password senza passaggio TOTP obbligatorio.
+Le migration creano schema, RLS, bucket privato, comandi transazionali e un controllo amministrativo separato dal workspace degli uffici. Gli utenti accedono con uno username globale; l’email Supabase resta un’identità interna e non viene esposta dal servizio di login. Il signup pubblico è bloccato. Il super amministratore gestisce da `/admin` uffici, piani, sospensioni, utenti, ruoli e password; l’accesso usa soltanto username e password, senza provider social o passaggio TOTP obbligatorio.
 
 Il servizio `username-login` è pubblico perché precede l’autenticazione, ma accetta soltanto richieste provenienti dal dominio configurato, non rivela se un account esiste e applica un limite di cinque tentativi ogni 15 minuti per coppia username/origine di rete. `LOGIN_RATE_LIMIT_SECRET` deve essere generato casualmente, conservato soltanto nei secret Supabase e mai inserito in Git o Vercel.
 

@@ -63,7 +63,7 @@ function officePayload(payload: Record<string, unknown>) {
     || userLimit < 1 || userLimit > 1000
     || (renewalDate && !/^\d{4}-\d{2}-\d{2}$/.test(renewalDate))
   ) return null;
-  return { name, slug, contact_email: contactEmail, phone: phone || null, timezone, currency, plan, subscription_status: subscriptionStatus, user_limit: userLimit, renewal_date: renewalDate, notes: notes || null };
+  return { name, slug, contactEmail, phone: phone || null, timezone, currency, plan, subscriptionStatus, userLimit, renewalDate, notes: notes || null };
 }
 
 Deno.serve(async (request) => {
@@ -75,16 +75,22 @@ Deno.serve(async (request) => {
   }
 
   const supabaseUrl = Deno.env.get("SUPABASE_URL") ?? "";
+  const publishableKey = keyFromSet("SUPABASE_PUBLISHABLE_KEYS", "sb_publishable_") || Deno.env.get("SUPABASE_ANON_KEY") || "";
   const serviceKey = keyFromSet("SUPABASE_SECRET_KEYS", "sb_secret_") || Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || "";
   const bearer = request.headers.get("authorization")?.replace(/^Bearer\s+/i, "") ?? "";
-  if (!supabaseUrl || !serviceKey || !bearer) return json({ message: "Servizio amministrativo non configurato." }, 503);
+  if (!supabaseUrl || !publishableKey || !serviceKey || !bearer) return json({ message: "Servizio amministrativo non configurato." }, 503);
 
   const admin = createClient(supabaseUrl, serviceKey, { auth: { autoRefreshToken: false, persistSession: false } });
-  const { data: userData, error: userError } = await admin.auth.getUser(bearer);
+  const caller = createClient(supabaseUrl, publishableKey, {
+    auth: { autoRefreshToken: false, persistSession: false },
+    global: { headers: { Authorization: `Bearer ${bearer}` } },
+  });
+  const [{ data: userData, error: userError }, { data: isPlatformAdmin, error: platformError }] = await Promise.all([
+    caller.auth.getUser(),
+    caller.rpc("is_platform_admin"),
+  ]);
   if (userError || !userData.user) return json({ message: "Sessione non valida." }, 401);
-  const callerId = userData.user.id;
-  const { data: platformAdmin } = await admin.from("platform_admins").select("user_id").eq("user_id", callerId).eq("is_active", true).maybeSingle();
-  if (!platformAdmin) return json({ message: "Accesso riservato al proprietario della piattaforma." }, 403);
+  if (platformError || isPlatformAdmin !== true) return json({ message: "Accesso riservato al proprietario della piattaforma." }, 403);
 
   let payload: Record<string, unknown>;
   try {
@@ -108,29 +114,20 @@ Deno.serve(async (request) => {
     const { data: authUser, error: authError } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { display_name: displayName } });
     if (authError || !authUser.user) return json({ message: "Email o account già utilizzato." }, 409);
 
-    const { data: organization, error: organizationError } = await admin.from("organizations").insert({ ...office, is_active: true }).select("id").single();
-    if (organizationError || !organization) {
+    const { data: organizationId, error: organizationError } = await caller.rpc("platform_create_office", {
+      payload: {
+        ...office,
+        adminUsername: username,
+        adminEmail: email,
+        adminDisplayName: displayName,
+      },
+      new_user_id: authUser.user.id,
+    });
+    if (organizationError || !organizationId) {
       await admin.auth.admin.deleteUser(authUser.user.id);
       return json({ message: "Nome breve già utilizzato oppure dati non validi." }, 409);
     }
-
-    const { error: memberError } = await admin.from("organization_members").insert({
-      organization_id: organization.id,
-      user_id: authUser.user.id,
-      username,
-      email,
-      display_name: displayName,
-      role: "admin",
-      is_active: true,
-    });
-    if (memberError) {
-      await admin.from("organizations").delete().eq("id", organization.id);
-      await admin.auth.admin.deleteUser(authUser.user.id);
-      return json({ message: "Username già utilizzato. Nessun ufficio è stato creato." }, 409);
-    }
-
-    await admin.from("platform_audit_logs").insert({ actor_user_id: callerId, action: "Ufficio creato", target_organization_id: organization.id, details: { plan: office.plan } });
-    return json({ id: organization.id, message: "Ufficio e primo accesso creati." });
+    return json({ id: organizationId, message: "Ufficio e primo accesso creati." });
   }
 
   if (operation === "update_office") {
@@ -138,12 +135,10 @@ Deno.serve(async (request) => {
     const office = officePayload(payload);
     const isActive = payload.isActive === true;
     if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !office) return json({ message: "Dati ufficio non validi." }, 400);
-    const { data: existing } = await admin.from("organizations").select("slug").eq("id", organizationId).maybeSingle();
-    if (!existing) return json({ message: "Ufficio non trovato." }, 404);
-    if (existing.slug === "alphatravel" && !isActive) return json({ message: "L’ufficio proprietario della piattaforma non può essere disattivato." }, 400);
-    const { error } = await admin.from("organizations").update({ ...office, is_active: isActive }).eq("id", organizationId);
-    if (error) return json({ message: "Modifica non applicata. Controlla slug ed email." }, 409);
-    await admin.from("platform_audit_logs").insert({ actor_user_id: callerId, action: isActive ? "Ufficio aggiornato" : "Ufficio disattivato", target_organization_id: organizationId, details: { plan: office.plan, subscriptionStatus: office.subscription_status } });
+    const { error } = await caller.rpc("platform_update_office", { payload: { ...office, organizationId, isActive } });
+    if (error?.message.includes("Office not found")) return json({ message: "Ufficio non trovato." }, 404);
+    if (error?.message.includes("Platform office cannot be disabled")) return json({ message: "L’ufficio proprietario della piattaforma non può essere disattivato." }, 400);
+    if (error) return json({ message: "Modifica non applicata. Controlla nome breve ed email." }, 409);
     return json({ message: isActive ? "Ufficio aggiornato." : "Ufficio disattivato: gli accessi sono stati bloccati." });
   }
 
@@ -157,21 +152,21 @@ Deno.serve(async (request) => {
     if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !usernamePattern.test(username) || !emailPattern.test(email) || displayName.length < 2 || !roles.has(role) || !validPassword(password)) {
       return json({ message: "Controlla username, email, ruolo e password." }, 400);
     }
-    const [{ data: organization }, { count }] = await Promise.all([
-      admin.from("organizations").select("id,user_limit").eq("id", organizationId).maybeSingle(),
-      admin.from("organization_members").select("user_id", { count: "exact", head: true }).eq("organization_id", organizationId).eq("is_active", true),
-    ]);
-    if (!organization) return json({ message: "Ufficio non trovato." }, 404);
-    if ((count ?? 0) >= organization.user_limit) return json({ message: "Limite utenti del piano raggiunto. Aumentalo prima di creare l’accesso." }, 409);
-
     const { data: authUser, error: authError } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { display_name: displayName } });
     if (authError || !authUser.user) return json({ message: "Email o account già utilizzato." }, 409);
-    const { error: memberError } = await admin.from("organization_members").insert({ organization_id: organizationId, user_id: authUser.user.id, username, email, display_name: displayName, role, is_active: true });
+    const { error: memberError } = await caller.rpc("platform_create_member", {
+      payload: { organizationId, username, email, displayName, role },
+      new_user_id: authUser.user.id,
+    });
     if (memberError) {
       await admin.auth.admin.deleteUser(authUser.user.id);
-      return json({ message: "Username già utilizzato. Nessun accesso è stato creato." }, 409);
+      const message = memberError.message.includes("User limit reached")
+        ? "Limite utenti del piano raggiunto. Aumentalo prima di creare l’accesso."
+        : memberError.message.includes("Office not found")
+          ? "Ufficio non trovato."
+          : "Username già utilizzato. Nessun accesso è stato creato.";
+      return json({ message }, memberError.message.includes("Office not found") ? 404 : 409);
     }
-    await admin.from("platform_audit_logs").insert({ actor_user_id: callerId, action: "Accesso creato", target_organization_id: organizationId, details: { userId: authUser.user.id, role } });
     return json({ id: authUser.user.id, message: "Accesso creato e subito utilizzabile." });
   }
 
@@ -187,23 +182,26 @@ Deno.serve(async (request) => {
     if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(userId) || !usernamePattern.test(username) || !emailPattern.test(email) || displayName.length < 2 || !roles.has(role) || (password && !validPassword(password))) {
       return json({ message: "Controlla i dati dell’utente." }, 400);
     }
-    const [{ data: member }, { data: protectedAdmin }, { data: organization }, { count }] = await Promise.all([
-      admin.from("organization_members").select("user_id,is_active").eq("organization_id", organizationId).eq("user_id", userId).maybeSingle(),
-      admin.from("platform_admins").select("user_id").eq("user_id", userId).eq("is_active", true).maybeSingle(),
-      admin.from("organizations").select("user_limit").eq("id", organizationId).maybeSingle(),
-      admin.from("organization_members").select("user_id", { count: "exact", head: true }).eq("organization_id", organizationId).eq("is_active", true),
-    ]);
-    if (!member || !organization) return json({ message: "Utente o ufficio non trovato." }, 404);
-    if (protectedAdmin && !isActive) return json({ message: "Il super amministratore della piattaforma non può essere sospeso." }, 400);
-    if (!member.is_active && isActive && (count ?? 0) >= organization.user_limit) return json({ message: "Limite utenti del piano raggiunto." }, 409);
+    const { data: previousMember, error: lookupError } = await caller.rpc("platform_get_member", {
+      target_organization_id: organizationId,
+      target_user_id: userId,
+    });
+    if (lookupError || !previousMember) return json({ message: "Utente o ufficio non trovato." }, 404);
+
+    const memberPayload = { organizationId, userId, username, email, displayName, role, isActive, passwordChanged: Boolean(password) };
+    const { error: memberError } = await caller.rpc("platform_update_member", { payload: memberPayload });
+    if (memberError?.message.includes("Platform administrator cannot be suspended")) return json({ message: "Il super amministratore della piattaforma non può essere sospeso." }, 400);
+    if (memberError?.message.includes("User limit reached")) return json({ message: "Limite utenti del piano raggiunto." }, 409);
+    if (memberError?.message.includes("At least one active administrator")) return json({ message: "Deve rimanere almeno un amministratore attivo nell’ufficio." }, 409);
+    if (memberError) return json({ message: "Username già utilizzato o modifica non valida." }, 409);
 
     const authChanges: { email: string; password?: string; user_metadata: { display_name: string } } = { email, user_metadata: { display_name: displayName } };
     if (password) authChanges.password = password;
     const { error: authError } = await admin.auth.admin.updateUserById(userId, authChanges);
-    if (authError) return json({ message: "Email o password non aggiornate. Verifica che l’email non sia già usata." }, 409);
-    const { error: memberError } = await admin.from("organization_members").update({ username, email, display_name: displayName, role, is_active: isActive }).eq("organization_id", organizationId).eq("user_id", userId);
-    if (memberError) return json({ message: memberError.message.includes("At least one active administrator") ? "Deve rimanere almeno un amministratore attivo nell’ufficio." : "Username già utilizzato o modifica non valida." }, 409);
-    await admin.from("platform_audit_logs").insert({ actor_user_id: callerId, action: password ? "Accesso e password aggiornati" : "Accesso aggiornato", target_organization_id: organizationId, details: { userId, role, isActive } });
+    if (authError) {
+      await caller.rpc("platform_update_member", { payload: previousMember });
+      return json({ message: "Email o password non aggiornate. Verifica che l’email non sia già usata." }, 409);
+    }
     return json({ message: password ? "Utente e nuova password aggiornati." : "Utente aggiornato." });
   }
 

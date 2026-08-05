@@ -17,7 +17,7 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 - Password: minimo 8 caratteri con lettera e numero, impostabile o modificabile dal super amministratore.
 - Rate limit Auth irrigidito; inviti amministrativi limitati anche dalla Edge Function.
 - Username univoci e normalizzati; risoluzione dell’identità solo nella Edge Function, token trasferiti esclusivamente al Server Action e tentativi memorizzati come HMAC senza IP o username in chiaro.
-- Scritture dirette sui ruoli revocate; le modifiche piattaforma passano dalla Edge Function autenticata e quelle dell’ufficio restano vincolate al ruolo admin.
+- Scritture dirette sui ruoli revocate; le modifiche piattaforma passano dalla Edge Function autenticata e da comandi PostgreSQL transazionali che verificano il JWT del proprietario, mentre quelle dell’ufficio restano vincolate al ruolo admin.
 - Impossibile eliminare, sospendere o declassare l’ultimo amministratore attivo.
 - Chiave privilegiata confinata nell’infrastruttura Supabase; non presente in Vercel, browser o repository.
 - CSP per-request con nonce e `strict-dynamic`; script inline non autorizzati bloccati.
@@ -32,13 +32,14 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 
 ## Verifiche eseguite
 
-- 11 migration remote sincronizzate con il repository.
-- Supabase CLI: 11 migration applicate e registrate; schema remoto verificato senza errori.
+- 12 migration remote sincronizzate con il repository.
+- Supabase CLI: 12 migration applicate e registrate; schema remoto verificato senza errori.
 - Edge Function senza autenticazione: risposta `401`.
 - `pnpm audit --prod`: nessuna vulnerabilità nota.
 - ESLint: zero warning/errori.
 - TypeScript: zero errori.
-- 63 test automatici superati in 9 suite, incluso l’inventario strutturale di pulsanti, form e collegamenti.
+- 64 test automatici superati in 9 suite, incluso l’inventario strutturale di pulsanti, form e collegamenti.
+- Collaudo autenticato in produzione della console piattaforma, del salvataggio ufficio, del salvataggio utente e delle otto pagine operative principali.
 - Build Next.js di produzione completata.
 - 26 route dinamiche compilate, incluse logistica, modifica, documenti privati, pagamenti e impostazioni.
 - Test locale della CSP: nonce della risposta presente sugli script Next.js e cache disabilitata.

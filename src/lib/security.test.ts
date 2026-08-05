@@ -42,6 +42,10 @@ const platformMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/202608050001_platform_control_plane.sql"),
   "utf8",
 );
+const platformCommandsMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/202608050002_platform_commands.sql"),
+  "utf8",
+);
 const edgeFunction = readFileSync(
   resolve(process.cwd(), "supabase/functions/admin-users/index.ts"),
   "utf8",
@@ -125,11 +129,32 @@ describe("database security migration", () => {
   });
 
   it("keeps platform mutations inside a platform-admin authenticated Edge Function", () => {
-    expect(edgeFunction).toContain("admin.auth.getUser(bearer)");
-    expect(edgeFunction).toContain('.from("platform_admins")');
+    expect(edgeFunction).toContain("caller.auth.getUser()");
+    expect(edgeFunction).toContain('caller.rpc("is_platform_admin")');
+    expect(edgeFunction).toContain('caller.rpc("platform_create_office"');
+    expect(edgeFunction).toContain('caller.rpc("platform_update_office"');
+    expect(edgeFunction).toContain('caller.rpc("platform_create_member"');
+    expect(edgeFunction).toContain('caller.rpc("platform_update_member"');
+    expect(edgeFunction).not.toMatch(/admin\.from\(/);
     expect(edgeFunction).toContain('operation === "create_office"');
     expect(edgeFunction).toContain('operation === "update_member"');
     expect(edgeFunction).not.toContain("aal2");
+  });
+
+  it("authorizes every transactional platform command with the caller JWT", () => {
+    for (const command of [
+      "platform_create_office",
+      "platform_update_office",
+      "platform_create_member",
+      "platform_get_member",
+      "platform_update_member",
+    ]) {
+      const body = platformCommandsMigration.split(`function public.${command}`)[1];
+      expect(body).toContain("auth.uid() is null or not public.is_platform_admin()");
+      expect(platformCommandsMigration).toContain(`grant execute on function public.${command}`);
+    }
+    expect(platformCommandsMigration).toContain("security definer");
+    expect(platformCommandsMigration).toContain("set search_path = public, pg_temp");
   });
 
   it("blocks suspended offices in both login resolution and tenant RLS helpers", () => {
