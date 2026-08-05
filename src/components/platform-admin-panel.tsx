@@ -32,11 +32,11 @@ import { formatCurrency } from "@/lib/utils";
 const planLabels = { starter: "Starter", professional: "Professional", enterprise: "Enterprise" } as const;
 
 function shortMonth(value: string) {
-  return new Intl.DateTimeFormat("it-IT", { month: "short" }).format(new Date(`${value}-01T12:00:00`));
+  return new Intl.DateTimeFormat("it-IT", { month: "short", timeZone: "Europe/Rome" }).format(new Date(`${value}-01T12:00:00Z`));
 }
 
 function dateLabel(value: string | null) {
-  return value ? new Intl.DateTimeFormat("it-IT", { dateStyle: "medium" }).format(new Date(`${value}T12:00:00`)) : "Non impostata";
+  return value ? new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeZone: "Europe/Rome" }).format(new Date(`${value}T12:00:00Z`)) : "Non impostata";
 }
 
 export function PlatformAdminPanel({ data }: { data: PlatformDashboardData }) {
@@ -229,7 +229,7 @@ export function PlatformAdminPanel({ data }: { data: PlatformDashboardData }) {
       <section id="activity" className="platform-panel">
         <div className="platform-panel-heading"><div><p>Registro</p><h2>Attività amministrative recenti</h2></div><span><LockKeyhole size={16} /> Operazioni tracciate</span></div>
         <div className="platform-activity-list">
-          {data.activity.map((entry) => <article key={entry.id}><span><Activity size={16} /></span><div><strong>{entry.action}</strong><p>{entry.officeName} · {entry.actorName}</p></div><time dateTime={entry.occurredAt}>{new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short" }).format(new Date(entry.occurredAt))}</time></article>)}
+          {data.activity.map((entry) => <article key={entry.id}><span><Activity size={16} /></span><div><strong>{entry.action}</strong><p>{entry.officeName} · {entry.actorName}</p></div><time dateTime={entry.occurredAt}>{new Intl.DateTimeFormat("it-IT", { dateStyle: "short", timeStyle: "short", timeZone: "Europe/Rome" }).format(new Date(entry.occurredAt))}</time></article>)}
           {!data.activity.length ? <div className="platform-empty"><Activity size={24} /><strong>Nessuna attività registrata</strong></div> : null}
         </div>
       </section>

@@ -55,6 +55,10 @@ const usernameLoginFunction = readFileSync(
   "utf8",
 );
 const proxy = readFileSync(resolve(process.cwd(), "src/proxy.ts"), "utf8");
+const platformAdminPanel = readFileSync(
+  resolve(process.cwd(), "src/components/platform-admin-panel.tsx"),
+  "utf8",
+);
 
 const tenantTables = [
   "organizations",
@@ -194,6 +198,11 @@ describe("database security migration", () => {
     expect(proxy).toContain("'strict-dynamic'");
     expect(proxy).toContain("script-src-attr 'none'");
     expect(proxy).not.toMatch(/script-src[^\n]+unsafe-inline/);
+  });
+
+  it("renders platform dates in one explicit timezone on server and browser", () => {
+    expect(platformAdminPanel.match(/timeZone: "Europe\/Rome"/g)).toHaveLength(3);
+    expect(platformAdminPanel).not.toContain("T12:00:00`");
   });
 
   it("enforces cross-trip and accounting invariants in PostgreSQL", () => {
