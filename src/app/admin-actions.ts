@@ -2,7 +2,6 @@
 
 import { revalidatePath } from "next/cache";
 import { z } from "zod";
-import { getCurrentPlatformAdmin } from "@/lib/admin-data";
 import { getSupabaseConfig } from "@/lib/supabase/config";
 import { createClient } from "@/lib/supabase/server";
 
@@ -14,22 +13,12 @@ const emailSchema = z.email().max(254);
 const passwordSchema = z.string().min(8).max(128).regex(/[A-Za-z]/).regex(/[0-9]/);
 const officeFields = {
   name: z.string().trim().min(2).max(120),
-  slug: z.string().trim().toLowerCase().regex(/^[a-z0-9][a-z0-9-]{1,62}$/),
   contactEmail: emailSchema,
-  phone: z.string().trim().max(40).optional().default(""),
-  timezone: z.enum(["Europe/Rome", "Europe/Paris", "Europe/Madrid", "Europe/Lisbon", "UTC"]),
-  currency: z.enum(["EUR", "USD", "GBP"]),
-  plan: z.enum(["starter", "professional", "enterprise"]),
-  subscriptionStatus: z.enum(["trial", "active", "past_due", "cancelled"]),
-  userLimit: z.coerce.number().int().min(1).max(1000),
-  renewalDate: z.union([z.iso.date(), z.literal("")]),
-  notes: z.string().trim().max(2000).optional().default(""),
 };
 
 const createOfficeSchema = z.object({
   ...officeFields,
   adminUsername: usernameSchema,
-  adminEmail: emailSchema,
   adminDisplayName: z.string().trim().min(2).max(120),
   adminPassword: passwordSchema,
 });
@@ -37,13 +26,14 @@ const createOfficeSchema = z.object({
 const updateOfficeSchema = z.object({
   ...officeFields,
   organizationId: z.uuid(),
-  isActive: z.enum(["true", "false"]),
 });
+
+const officeStateSchema = z.object({ organizationId: z.uuid(), isActive: z.enum(["true", "false"]) });
+const deleteOfficeSchema = z.object({ organizationId: z.uuid(), confirmation: z.string().min(2).max(120) });
 
 const createMemberSchema = z.object({
   organizationId: z.uuid(),
   username: usernameSchema,
-  email: emailSchema,
   displayName: z.string().trim().min(2).max(120),
   role: roleSchema,
   password: passwordSchema,
@@ -53,7 +43,6 @@ const updateMemberSchema = z.object({
   organizationId: z.uuid(),
   userId: z.uuid(),
   username: usernameSchema,
-  email: emailSchema,
   displayName: z.string().trim().min(2).max(120),
   role: roleSchema,
   isActive: z.enum(["true", "false"]),
@@ -61,9 +50,9 @@ const updateMemberSchema = z.object({
 });
 
 async function callPlatformControl(operation: string, payload: Record<string, unknown>): Promise<AdminActionResult> {
-  const [admin, supabase] = await Promise.all([getCurrentPlatformAdmin(), createClient()]);
+  const supabase = await createClient();
   const config = getSupabaseConfig();
-  if (!admin || !supabase || !config) return { ok: false, message: "Sessione amministrativa non valida." };
+  if (!supabase || !config) return { ok: false, message: "Sessione amministrativa non valida." };
 
   const { data: sessionData } = await supabase.auth.getSession();
   const accessToken = sessionData.session?.access_token;
@@ -100,7 +89,19 @@ export async function createOfficeAction(formData: FormData): Promise<AdminActio
 export async function updateOfficeAction(formData: FormData): Promise<AdminActionResult> {
   const parsed = updateOfficeSchema.safeParse(Object.fromEntries(formData.entries()));
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Controlla i dati dell’ufficio." };
-  return callPlatformControl("update_office", { ...parsed.data, isActive: parsed.data.isActive === "true" });
+  return callPlatformControl("update_office", parsed.data);
+}
+
+export async function setOfficeActiveAction(formData: FormData): Promise<AdminActionResult> {
+  const parsed = officeStateSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) return { ok: false, message: "Ufficio non valido." };
+  return callPlatformControl("set_office_active", { ...parsed.data, isActive: parsed.data.isActive === "true" });
+}
+
+export async function deleteOfficeAction(formData: FormData): Promise<AdminActionResult> {
+  const parsed = deleteOfficeSchema.safeParse(Object.fromEntries(formData.entries()));
+  if (!parsed.success) return { ok: false, message: "Conferma di eliminazione non valida." };
+  return callPlatformControl("delete_office", parsed.data);
 }
 
 export async function createOfficeMemberAction(formData: FormData): Promise<AdminActionResult> {

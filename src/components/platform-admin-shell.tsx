@@ -1,4 +1,4 @@
-import { Activity, Building2, Gauge, LayoutGrid, LogOut, Plane, Users } from "lucide-react";
+import { Building2, LogOut, Plane } from "lucide-react";
 import Link from "next/link";
 import { signOutAction } from "@/app/actions";
 
@@ -11,12 +11,8 @@ export function PlatformAdminShell({ children, admin }: { children: React.ReactN
       <aside className="platform-sidebar">
         <Link href="/admin" className="platform-brand"><span><Plane size={20} /></span><div><strong>AlphaTravel</strong><small>Platform console</small></div></Link>
         <nav aria-label="Navigazione piattaforma">
-          <p>Console</p>
-          <a href="#overview"><LayoutGrid size={17} /> Panoramica</a>
-          <a href="#analytics"><Gauge size={17} /> Analitiche</a>
+          <p>Gestione</p>
           <a href="#offices"><Building2 size={17} /> Uffici clienti</a>
-          <a href="#users"><Users size={17} /> Utenti e accessi</a>
-          <a href="#activity"><Activity size={17} /> Attività</a>
         </nav>
         <div className="platform-sidebar-spacer" />
         <Link className="platform-workspace-link" href="/dashboard">Apri workspace agenzia</Link>

@@ -6,35 +6,21 @@ import type { AppRole } from "./types";
 export type PlatformOfficeMember = {
   userId: string;
   username: string;
-  email: string;
   displayName: string;
   role: AppRole;
   isActive: boolean;
-  createdAt: string;
-  lastSignInAt: string | null;
 };
 
 export type PlatformOffice = {
   id: string;
   name: string;
-  slug: string;
   contactEmail: string;
-  phone: string;
-  timezone: string;
-  currency: string;
-  plan: "starter" | "professional" | "enterprise";
-  subscriptionStatus: "trial" | "active" | "past_due" | "cancelled";
   isActive: boolean;
-  userLimit: number;
-  renewalDate: string | null;
-  notes: string;
   createdAt: string;
   memberCount: number;
+  activeMemberCount: number;
   pilgrimCount: number;
   tripCount: number;
-  registrationCount: number;
-  collected: number;
-  isPlatformOffice: boolean;
   members: PlatformOfficeMember[];
 };
 
@@ -45,24 +31,8 @@ export type PlatformDashboardData = {
     activeUsers: number;
     pilgrims: number;
     trips: number;
-    registrations: number;
-    collected: number;
   };
   offices: PlatformOffice[];
-  monthly: Array<{
-    month: string;
-    offices: number;
-    pilgrims: number;
-    trips: number;
-    collected: number;
-  }>;
-  activity: Array<{
-    id: number;
-    action: string;
-    officeName: string;
-    actorName: string;
-    occurredAt: string;
-  }>;
 };
 
 type PlatformAdminIdentity = {
@@ -73,10 +43,8 @@ type PlatformAdminIdentity = {
 
 function emptyDashboard(): PlatformDashboardData {
   return {
-    stats: { totalOffices: 0, activeOffices: 0, activeUsers: 0, pilgrims: 0, trips: 0, registrations: 0, collected: 0 },
+    stats: { totalOffices: 0, activeOffices: 0, activeUsers: 0, pilgrims: 0, trips: 0 },
     offices: [],
-    monthly: [],
-    activity: [],
   };
 }
 

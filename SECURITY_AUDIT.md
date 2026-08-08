@@ -1,6 +1,6 @@
 # Audit di sicurezza AlphaTravel
 
-Data: 5 agosto 2026
+Data: 8 agosto 2026
 Ambito: applicazione Next.js, Supabase Auth/PostgreSQL/Storage/Edge Functions, configurazione HTTP e dipendenze.
 
 ## Esito
@@ -29,16 +29,19 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 - Controlli database concorrenti su capienza dei viaggi e delle camere, coerenza gruppo/camera/posto con il viaggio e saldo netto di pagamenti/rimborsi.
 - Controlli per ruolo replicati su pagina, Server Action, API e Row Level Security; le sezioni non autorizzate non vengono renderizzate.
 - Audit delle modifiche sensibili senza memorizzare il contenuto modificato.
+- Console piattaforma ridotta alle sole operazioni essenziali; dashboard calcolata con rollup aggregati per evitare interrogazioni ripetute per ogni ufficio.
+- Sospensione dell’ufficio applicata a tutte le sessioni tramite RLS; riattivazione esplicita disponibile dalla stessa console.
+- Eliminazione permanente in due fasi: nome esatto, protezione dell’ufficio interno, sospensione immediata, rimozione dei file privati e degli account Auth, quindi cancellazione transazionale dei dati del tenant.
 
 ## Verifiche eseguite
 
-- 12 migration remote sincronizzate con il repository.
-- Supabase CLI: 12 migration applicate e registrate; schema remoto verificato senza errori.
+- 13 migration remote sincronizzate con il repository.
+- Supabase CLI: 13 migration applicate e registrate; schema remoto verificato senza errori.
 - Edge Function senza autenticazione: risposta `401`.
 - `pnpm audit --prod`: nessuna vulnerabilità nota.
 - ESLint: zero warning/errori.
 - TypeScript: zero errori.
-- 65 test automatici superati in 9 suite, incluso l’inventario strutturale di pulsanti, form e collegamenti.
+- 67 test automatici superati in 9 suite, incluso l’inventario strutturale di pulsanti, form e collegamenti.
 - Collaudo autenticato in produzione della console piattaforma, del salvataggio ufficio, del salvataggio utente e delle otto pagine operative principali.
 - Build Next.js di produzione completata.
 - 26 route dinamiche compilate, incluse logistica, modifica, documenti privati, pagamenti e impostazioni.

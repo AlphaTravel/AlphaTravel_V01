@@ -1,13 +1,9 @@
 import { createClient } from "npm:@supabase/supabase-js@2";
 
 const usernamePattern = /^[a-z][a-z0-9._-]{2,31}$/;
-const slugPattern = /^[a-z0-9][a-z0-9-]{1,62}$/;
 const emailPattern = /^[^@\s]+@[^@\s]+\.[^@\s]+$/;
 const roles = new Set(["admin", "manager", "operator", "guide", "accountant", "viewer"]);
-const plans = new Set(["starter", "professional", "enterprise"]);
-const subscriptions = new Set(["trial", "active", "past_due", "cancelled"]);
-const timezones = new Set(["Europe/Rome", "Europe/Paris", "Europe/Madrid", "Europe/Lisbon", "UTC"]);
-const currencies = new Set(["EUR", "USD", "GBP"]);
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function keyFromSet(name: string, prefix: string) {
   const raw = Deno.env.get(name) ?? "";
@@ -46,24 +42,45 @@ function validPassword(value: string) {
 
 function officePayload(payload: Record<string, unknown>) {
   const name = clean(payload.name, 120);
-  const slug = clean(payload.slug, 63).toLowerCase();
   const contactEmail = clean(payload.contactEmail, 254).toLowerCase();
-  const phone = clean(payload.phone, 40);
-  const timezone = clean(payload.timezone, 40);
-  const currency = clean(payload.currency, 3);
-  const plan = clean(payload.plan, 20);
-  const subscriptionStatus = clean(payload.subscriptionStatus, 20);
-  const userLimit = Number(payload.userLimit);
-  const renewalDate = clean(payload.renewalDate, 10) || null;
-  const notes = clean(payload.notes, 2000);
-  if (
-    name.length < 2 || !slugPattern.test(slug) || !emailPattern.test(contactEmail)
-    || !timezones.has(timezone) || !currencies.has(currency) || !plans.has(plan)
-    || !subscriptions.has(subscriptionStatus) || !Number.isInteger(userLimit)
-    || userLimit < 1 || userLimit > 1000
-    || (renewalDate && !/^\d{4}-\d{2}-\d{2}$/.test(renewalDate))
-  ) return null;
-  return { name, slug, contactEmail, phone: phone || null, timezone, currency, plan, subscriptionStatus, userLimit, renewalDate, notes: notes || null };
+  if (name.length < 2 || !emailPattern.test(contactEmail)) return null;
+  return { name, contactEmail };
+}
+
+function internalEmail(username: string) {
+  return `${username}@auth.alphatravel.local`;
+}
+
+function officeSlug(name: string) {
+  const normalized = name.normalize("NFKD").replace(/[\u0300-\u036f]/g, "").toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "");
+  const prefix = (normalized || "ufficio").slice(0, 54).replace(/-+$/g, "");
+  return `${prefix}-${crypto.randomUUID().slice(0, 8)}`;
+}
+
+async function removePrivateFiles(admin: ReturnType<typeof createClient>, root: string) {
+  const folders = [root];
+  while (folders.length) {
+    const folder = folders.pop() as string;
+    const files: string[] = [];
+    let offset = 0;
+    while (true) {
+      const { data, error } = await admin.storage.from("private-documents").list(folder, { limit: 100, offset, sortBy: { column: "name", order: "asc" } });
+      if (error) return false;
+      for (const entry of data ?? []) {
+        const path = `${folder}/${entry.name}`;
+        if (entry.id) files.push(path);
+        else folders.push(path);
+      }
+      if (!data || data.length < 100) break;
+      offset += 100;
+    }
+    for (let index = 0; index < files.length; index += 100) {
+      const { error } = await admin.storage.from("private-documents").remove(files.slice(index, index + 100));
+      if (error) return false;
+    }
+  }
+  return true;
 }
 
 Deno.serve(async (request) => {
@@ -104,19 +121,20 @@ Deno.serve(async (request) => {
   if (operation === "create_office") {
     const office = officePayload(payload);
     const username = clean(payload.adminUsername, 32).toLowerCase();
-    const email = clean(payload.adminEmail, 254).toLowerCase();
     const displayName = clean(payload.adminDisplayName, 120);
     const password = String(payload.adminPassword ?? "");
-    if (!office || !usernamePattern.test(username) || !emailPattern.test(email) || displayName.length < 2 || !validPassword(password)) {
+    if (!office || !usernamePattern.test(username) || displayName.length < 2 || !validPassword(password)) {
       return json({ message: "Controlla i dati dell’ufficio e del primo accesso." }, 400);
     }
+    const email = internalEmail(username);
 
     const { data: authUser, error: authError } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { display_name: displayName } });
-    if (authError || !authUser.user) return json({ message: "Email o account già utilizzato." }, 409);
+    if (authError || !authUser.user) return json({ message: "Username già utilizzato." }, 409);
 
     const { data: organizationId, error: organizationError } = await caller.rpc("platform_create_office", {
       payload: {
         ...office,
+        slug: officeSlug(office.name),
         adminUsername: username,
         adminEmail: email,
         adminDisplayName: displayName,
@@ -125,7 +143,7 @@ Deno.serve(async (request) => {
     });
     if (organizationError || !organizationId) {
       await admin.auth.admin.deleteUser(authUser.user.id);
-      return json({ message: "Nome breve già utilizzato oppure dati non validi." }, 409);
+      return json({ message: "Username già utilizzato oppure dati non validi." }, 409);
     }
     return json({ id: organizationId, message: "Ufficio e primo accesso creati." });
   }
@@ -133,38 +151,44 @@ Deno.serve(async (request) => {
   if (operation === "update_office") {
     const organizationId = clean(payload.organizationId, 36);
     const office = officePayload(payload);
-    const isActive = payload.isActive === true;
-    if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !office) return json({ message: "Dati ufficio non validi." }, 400);
-    const { error } = await caller.rpc("platform_update_office", { payload: { ...office, organizationId, isActive } });
+    if (!uuidPattern.test(organizationId) || !office) return json({ message: "Dati ufficio non validi." }, 400);
+    const { error } = await caller.rpc("platform_update_office", { payload: { ...office, organizationId } });
     if (error?.message.includes("Office not found")) return json({ message: "Ufficio non trovato." }, 404);
-    if (error?.message.includes("Platform office cannot be disabled")) return json({ message: "L’ufficio proprietario della piattaforma non può essere disattivato." }, 400);
-    if (error) return json({ message: "Modifica non applicata. Controlla nome breve ed email." }, 409);
-    return json({ message: isActive ? "Ufficio aggiornato." : "Ufficio disattivato: gli accessi sono stati bloccati." });
+    if (error) return json({ message: "Modifica non applicata. Controlla nome ed email." }, 409);
+    return json({ message: "Ufficio aggiornato." });
+  }
+
+  if (operation === "set_office_active") {
+    const organizationId = clean(payload.organizationId, 36);
+    const isActive = payload.isActive === true;
+    if (!uuidPattern.test(organizationId)) return json({ message: "Ufficio non valido." }, 400);
+    const { error } = await caller.rpc("platform_set_office_active", { target_organization_id: organizationId, target_active: isActive });
+    if (error?.message.includes("Office not found")) return json({ message: "Ufficio non trovato." }, 404);
+    if (error) return json({ message: "Stato dell’ufficio non aggiornato." }, 409);
+    return json({ message: isActive ? "Ufficio riattivato. Gli accessi funzionano di nuovo." : "Ufficio sospeso. Tutti gli accessi sono bloccati." });
   }
 
   if (operation === "create_member") {
     const organizationId = clean(payload.organizationId, 36);
     const username = clean(payload.username, 32).toLowerCase();
-    const email = clean(payload.email, 254).toLowerCase();
     const displayName = clean(payload.displayName, 120);
     const role = clean(payload.role, 20);
     const password = String(payload.password ?? "");
-    if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !usernamePattern.test(username) || !emailPattern.test(email) || displayName.length < 2 || !roles.has(role) || !validPassword(password)) {
-      return json({ message: "Controlla username, email, ruolo e password." }, 400);
+    if (!uuidPattern.test(organizationId) || !usernamePattern.test(username) || displayName.length < 2 || !roles.has(role) || !validPassword(password)) {
+      return json({ message: "Controlla username, ruolo e password." }, 400);
     }
+    const email = internalEmail(username);
     const { data: authUser, error: authError } = await admin.auth.admin.createUser({ email, password, email_confirm: true, user_metadata: { display_name: displayName } });
-    if (authError || !authUser.user) return json({ message: "Email o account già utilizzato." }, 409);
+    if (authError || !authUser.user) return json({ message: "Username già utilizzato." }, 409);
     const { error: memberError } = await caller.rpc("platform_create_member", {
       payload: { organizationId, username, email, displayName, role },
       new_user_id: authUser.user.id,
     });
     if (memberError) {
       await admin.auth.admin.deleteUser(authUser.user.id);
-      const message = memberError.message.includes("User limit reached")
-        ? "Limite utenti del piano raggiunto. Aumentalo prima di creare l’accesso."
-        : memberError.message.includes("Office not found")
-          ? "Ufficio non trovato."
-          : "Username già utilizzato. Nessun accesso è stato creato.";
+      const message = memberError.message.includes("Office not found")
+        ? "Ufficio non trovato."
+        : "Username già utilizzato. Nessun accesso è stato creato.";
       return json({ message }, memberError.message.includes("Office not found") ? 404 : 409);
     }
     return json({ id: authUser.user.id, message: "Accesso creato e subito utilizzabile." });
@@ -174,12 +198,11 @@ Deno.serve(async (request) => {
     const organizationId = clean(payload.organizationId, 36);
     const userId = clean(payload.userId, 36);
     const username = clean(payload.username, 32).toLowerCase();
-    const email = clean(payload.email, 254).toLowerCase();
     const displayName = clean(payload.displayName, 120);
     const role = clean(payload.role, 20);
     const password = String(payload.password ?? "");
     const isActive = payload.isActive === true;
-    if (!/^[0-9a-f-]{36}$/i.test(organizationId) || !/^[0-9a-f-]{36}$/i.test(userId) || !usernamePattern.test(username) || !emailPattern.test(email) || displayName.length < 2 || !roles.has(role) || (password && !validPassword(password))) {
+    if (!uuidPattern.test(organizationId) || !uuidPattern.test(userId) || !usernamePattern.test(username) || displayName.length < 2 || !roles.has(role) || (password && !validPassword(password))) {
       return json({ message: "Controlla i dati dell’utente." }, 400);
     }
     const { data: previousMember, error: lookupError } = await caller.rpc("platform_get_member", {
@@ -188,21 +211,53 @@ Deno.serve(async (request) => {
     });
     if (lookupError || !previousMember) return json({ message: "Utente o ufficio non trovato." }, 404);
 
-    const memberPayload = { organizationId, userId, username, email, displayName, role, isActive, passwordChanged: Boolean(password) };
+    const memberPayload = { organizationId, userId, username, email: previousMember.email, displayName, role, isActive, passwordChanged: Boolean(password) };
     const { error: memberError } = await caller.rpc("platform_update_member", { payload: memberPayload });
     if (memberError?.message.includes("Platform administrator cannot be suspended")) return json({ message: "Il super amministratore della piattaforma non può essere sospeso." }, 400);
-    if (memberError?.message.includes("User limit reached")) return json({ message: "Limite utenti del piano raggiunto." }, 409);
     if (memberError?.message.includes("At least one active administrator")) return json({ message: "Deve rimanere almeno un amministratore attivo nell’ufficio." }, 409);
     if (memberError) return json({ message: "Username già utilizzato o modifica non valida." }, 409);
 
-    const authChanges: { email: string; password?: string; user_metadata: { display_name: string } } = { email, user_metadata: { display_name: displayName } };
+    const authChanges: { password?: string; user_metadata: { display_name: string } } = { user_metadata: { display_name: displayName } };
     if (password) authChanges.password = password;
     const { error: authError } = await admin.auth.admin.updateUserById(userId, authChanges);
     if (authError) {
       await caller.rpc("platform_update_member", { payload: previousMember });
-      return json({ message: "Email o password non aggiornate. Verifica che l’email non sia già usata." }, 409);
+      return json({ message: "Password non aggiornata. Riprova." }, 409);
     }
     return json({ message: password ? "Utente e nuova password aggiornati." : "Utente aggiornato." });
+  }
+
+  if (operation === "delete_office") {
+    const organizationId = clean(payload.organizationId, 36);
+    const confirmation = clean(payload.confirmation, 120);
+    if (!uuidPattern.test(organizationId) || confirmation.length < 2) return json({ message: "Conferma di eliminazione non valida." }, 400);
+
+    const { data: deletion, error: prepareError } = await caller.rpc("platform_prepare_delete_office", {
+      target_organization_id: organizationId,
+      confirmation,
+    });
+    if (prepareError?.message.includes("Invalid confirmation")) return json({ message: "Scrivi esattamente il nome dell’ufficio." }, 400);
+    if (prepareError?.message.includes("Office not found")) return json({ message: "Ufficio non trovato." }, 404);
+    if (prepareError?.message.includes("Platform office cannot be deleted")) return json({ message: "L’ufficio interno AlphaTravel non può essere eliminato." }, 400);
+    if (prepareError || !deletion || typeof deletion !== "object") return json({ message: "Eliminazione non avviata." }, 409);
+
+    const storageRemoved = await removePrivateFiles(admin, organizationId);
+    if (!storageRemoved) return json({ message: "Documenti non eliminati: l’ufficio è stato sospeso. Riprova l’eliminazione." }, 503);
+
+    const userIds = Array.isArray(deletion.userIds) ? deletion.userIds.filter((value): value is string => typeof value === "string" && uuidPattern.test(value)) : [];
+    for (const userId of userIds) {
+      const { error } = await admin.auth.admin.deleteUser(userId);
+      if (error && !error.message.toLowerCase().includes("not found")) {
+        return json({ message: "Account non eliminati completamente: l’ufficio resta sospeso. Riprova." }, 503);
+      }
+    }
+
+    const { error: deleteError } = await caller.rpc("platform_delete_office", {
+      target_organization_id: organizationId,
+      confirmation,
+    });
+    if (deleteError) return json({ message: "Dati non eliminati completamente: l’ufficio resta sospeso. Riprova." }, 503);
+    return json({ message: "Ufficio, accessi, documenti e dati associati eliminati definitivamente." });
   }
 
   return json({ message: "Operazione non riconosciuta." }, 400);

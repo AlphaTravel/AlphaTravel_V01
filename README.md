@@ -36,7 +36,9 @@ pnpm supabase functions deploy admin-users --use-api
 pnpm supabase functions deploy username-login --no-verify-jwt --use-api
 ```
 
-Le migration creano schema, RLS, bucket privato, comandi transazionali e un controllo amministrativo separato dal workspace degli uffici. Gli utenti accedono con uno username globale; l’email Supabase resta un’identità interna e non viene esposta dal servizio di login. Il signup pubblico è bloccato. Il super amministratore gestisce da `/admin` uffici, piani, sospensioni, utenti, ruoli e password; l’accesso usa soltanto username e password, senza provider social o passaggio TOTP obbligatorio.
+Le migration creano schema, RLS, bucket privato, comandi transazionali e un controllo amministrativo separato dal workspace degli uffici. Gli utenti accedono con uno username globale; l’email Supabase resta un’identità tecnica interna, generata automaticamente e mai richiesta o esposta dal servizio di login. Il signup pubblico è bloccato. Da `/admin` il proprietario crea e modifica gli uffici, assegna username, ruoli e password, sospende o riattiva tutti gli accessi e può eliminare definitivamente un ufficio con conferma esplicita. L’accesso usa soltanto username e password, senza provider social o passaggio TOTP obbligatorio.
+
+La cancellazione di un ufficio è intenzionalmente distruttiva: dopo la conferma con il nome esatto vengono rimossi documenti privati, account Auth e tutti i dati del tenant. L’ufficio interno AlphaTravel è protetto e non può essere eliminato dalla console.
 
 Il servizio `username-login` è pubblico perché precede l’autenticazione, ma accetta soltanto richieste provenienti dal dominio configurato, non rivela se un account esiste e applica un limite di cinque tentativi ogni 15 minuti per coppia username/origine di rete. `LOGIN_RATE_LIMIT_SECRET` deve essere generato casualmente, conservato soltanto nei secret Supabase e mai inserito in Git o Vercel.
 

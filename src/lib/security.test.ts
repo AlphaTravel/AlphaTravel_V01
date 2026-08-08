@@ -46,6 +46,10 @@ const platformCommandsMigration = readFileSync(
   resolve(process.cwd(), "supabase/migrations/202608050002_platform_commands.sql"),
   "utf8",
 );
+const simplifiedPlatformMigration = readFileSync(
+  resolve(process.cwd(), "supabase/migrations/202608070001_simplify_platform_admin.sql"),
+  "utf8",
+);
 const edgeFunction = readFileSync(
   resolve(process.cwd(), "supabase/functions/admin-users/index.ts"),
   "utf8",
@@ -139,6 +143,11 @@ describe("database security migration", () => {
     expect(edgeFunction).toContain('caller.rpc("platform_update_office"');
     expect(edgeFunction).toContain('caller.rpc("platform_create_member"');
     expect(edgeFunction).toContain('caller.rpc("platform_update_member"');
+    expect(edgeFunction).toContain('caller.rpc("platform_set_office_active"');
+    expect(edgeFunction).toContain('caller.rpc("platform_prepare_delete_office"');
+    expect(edgeFunction).toContain('caller.rpc("platform_delete_office"');
+    expect(edgeFunction).toContain('admin.storage.from("private-documents").remove');
+    expect(edgeFunction).toContain("admin.auth.admin.deleteUser");
     expect(edgeFunction).not.toMatch(/admin\.from\(/);
     expect(edgeFunction).toContain('operation === "create_office"');
     expect(edgeFunction).toContain('operation === "update_member"');
@@ -201,8 +210,27 @@ describe("database security migration", () => {
   });
 
   it("renders platform dates in one explicit timezone on server and browser", () => {
-    expect(platformAdminPanel.match(/timeZone: "Europe\/Rome"/g)).toHaveLength(3);
+    expect(platformAdminPanel.match(/timeZone: "Europe\/Rome"/g)).toHaveLength(1);
     expect(platformAdminPanel).not.toContain("T12:00:00`");
+  });
+
+  it("permanently deletes a tenant only after exact confirmation and protects the platform office", () => {
+    expect(simplifiedPlatformMigration).toContain("create or replace function public.platform_prepare_delete_office");
+    expect(simplifiedPlatformMigration).toContain("create or replace function public.platform_delete_office");
+    expect(simplifiedPlatformMigration).toContain("confirmation <> office_name");
+    expect(simplifiedPlatformMigration).toContain("office_slug = 'alphatravel'");
+    expect(simplifiedPlatformMigration).toContain("delete from public.payments");
+    expect(simplifiedPlatformMigration).toContain("delete from public.registrations");
+    expect(simplifiedPlatformMigration).toContain("delete from public.organizations");
+  });
+
+  it("builds the compact platform dashboard with aggregate rollups instead of per-row subqueries", () => {
+    expect(simplifiedPlatformMigration).toContain("member_rollup as");
+    expect(simplifiedPlatformMigration).toContain("cross join authorized");
+    expect(simplifiedPlatformMigration).toContain("pilgrim_rollup as");
+    expect(simplifiedPlatformMigration).toContain("trip_rollup as");
+    expect(simplifiedPlatformMigration).not.toContain("'monthly'");
+    expect(simplifiedPlatformMigration).not.toContain("'activity'");
   });
 
   it("enforces cross-trip and accounting invariants in PostgreSQL", () => {
