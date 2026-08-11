@@ -39,7 +39,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
 
   return (
     <div className="app-frame">
-      {open ? <button className="sidebar-scrim" aria-label="Chiudi menu" onClick={() => setOpen(false)} /> : null}
+      {open ? <button className="sidebar-scrim" type="button" aria-label="Chiudi menu" onClick={() => setOpen(false)} /> : null}
       <aside className={cn("sidebar", open && "sidebar-open")}>
         <div className="brand-row">
           <Link className="brand" href="/dashboard" onClick={() => setOpen(false)}>
@@ -49,7 +49,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
               <small>Group travel OS</small>
             </span>
           </Link>
-          <button className="mobile-close" onClick={() => setOpen(false)} aria-label="Chiudi menu">
+          <button className="mobile-close" type="button" onClick={() => setOpen(false)} aria-label="Chiudi menu">
             <X size={19} />
           </button>
         </div>
@@ -92,7 +92,7 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
 
       <div className="app-main">
         <header className="topbar">
-          <button className="mobile-menu" onClick={() => setOpen(true)} aria-label="Apri menu">
+          <button className="mobile-menu" type="button" onClick={() => setOpen(true)} aria-label="Apri menu">
             <Menu size={21} />
           </button>
           <form className="global-search" action="/pellegrini" method="get">

@@ -18,9 +18,9 @@ function openings(source: string, tag: string) {
 }
 
 describe("interactive control wiring", () => {
-  it("gives every button an explicit submit role or click handler", () => {
+  it("gives every button an explicit type", () => {
     const invalid = files.flatMap((file) => openings(readFileSync(file, "utf8"), "button")
-      .filter((tag) => !tag.includes('type="submit"') && !tag.includes("onClick="))
+      .filter((tag) => !tag.includes('type="submit"') && !tag.includes('type="button"'))
       .map((tag) => `${relative(root, file)}: ${tag.slice(0, 100)}`));
     expect(invalid).toEqual([]);
   });

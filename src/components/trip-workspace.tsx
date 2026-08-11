@@ -29,7 +29,7 @@ export function TripWorkspace({ trip, data, canManage, canViewPayments, canRecor
   return (
     <div className="workspace">
       <div className="workspace-tabs" role="tablist" aria-label="Sezioni viaggio">
-        {visibleTabs.map((tab) => <button key={tab} role="tab" aria-selected={active === tab} className={active === tab ? "active" : ""} onClick={() => setActive(tab)}>{tab}</button>)}
+        {visibleTabs.map((tab) => <button key={tab} type="button" role="tab" aria-selected={active === tab} className={active === tab ? "active" : ""} onClick={() => setActive(tab)}>{tab}</button>)}
       </div>
       {active === "Panoramica" ? <Overview trip={trip} data={data} canViewSensitive={canViewSensitive} canViewPayments={canViewPayments} /> : null}
       {active === "Partecipanti" ? <Participants trip={trip} data={data.participants} canManage={canManage} canViewSensitive={canViewSensitive} /> : null}
