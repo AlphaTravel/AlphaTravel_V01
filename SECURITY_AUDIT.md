@@ -1,6 +1,6 @@
 # Audit di sicurezza AlphaTravel
 
-Data: 8 agosto 2026
+Data: 11 agosto 2026
 Ambito: applicazione Next.js, Supabase Auth/PostgreSQL/Storage/Edge Functions, configurazione HTTP e dipendenze.
 
 ## Esito
@@ -21,6 +21,7 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 - Impossibile eliminare, sospendere o declassare l’ultimo amministratore attivo.
 - Chiave privilegiata confinata nell’infrastruttura Supabase; non presente in Vercel, browser o repository.
 - CSP per-request con nonce e `strict-dynamic`; script inline non autorizzati bloccati.
+- Tutti i moduli gestiti nel browser dichiarano `POST`: anche prima del caricamento di JavaScript le credenziali e i dati sensibili non possono finire nella query string.
 - Header HSTS, anti-framing, anti-MIME sniffing, Permissions Policy e `Cache-Control: private, no-store` verificati.
 - RLS su tutte le tabelle esposte; dati sanitari e documenti sensibili separati e più restrittivi.
 - Bucket documenti privato, limiti MIME/dimensione e autorizzazione per percorso/organizzazione.
@@ -30,6 +31,10 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 - Controlli per ruolo replicati su pagina, Server Action, API e Row Level Security; le sezioni non autorizzate non vengono renderizzate.
 - Audit delle modifiche sensibili senza memorizzare il contenuto modificato.
 - Console piattaforma ridotta alle sole operazioni essenziali; dashboard calcolata con rollup aggregati per evitare interrogazioni ripetute per ogni ufficio.
+- Navigazione ufficio e impostazioni ridotte alle funzioni effettivamente operative; eliminati collegamenti e pannelli informativi duplicati.
+- Dashboard ufficio ottimizzata con una query dedicata ai soli indicatori di attenzione, senza caricare profili e contatti completi dei pellegrini.
+- Instradamento autenticato corretto: solo `platform_admins` attivi entrano nella console piattaforma; il semplice ruolo admin di un ufficio non è sufficiente.
+- Audit di leggibilità automatizzato: nessun testo con dimensione esplicita inferiore a 12 px nelle interfacce ufficio e piattaforma.
 - Sospensione dell’ufficio applicata a tutte le sessioni tramite RLS; riattivazione esplicita disponibile dalla stessa console.
 - Eliminazione permanente in due fasi: nome esatto, protezione dell’ufficio interno, sospensione immediata, rimozione dei file privati e degli account Auth, quindi cancellazione transazionale dei dati del tenant.
 
@@ -41,7 +46,7 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 - `pnpm audit --prod`: nessuna vulnerabilità nota.
 - ESLint: zero warning/errori.
 - TypeScript: zero errori.
-- 67 test automatici superati in 9 suite, incluso l’inventario strutturale di pulsanti, form e collegamenti.
+- 71 test automatici superati in 10 suite, inclusi inventario strutturale di pulsanti/form/collegamenti, fallback POST e soglia minima delle scritte.
 - Collaudo autenticato in produzione della console piattaforma, del salvataggio ufficio, del salvataggio utente e delle otto pagine operative principali.
 - Build Next.js di produzione completata.
 - 26 route dinamiche compilate, incluse logistica, modifica, documenti privati, pagamenti e impostazioni.

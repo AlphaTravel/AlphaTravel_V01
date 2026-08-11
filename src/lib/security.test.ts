@@ -59,6 +59,8 @@ const usernameLoginFunction = readFileSync(
   "utf8",
 );
 const proxy = readFileSync(resolve(process.cwd(), "src/proxy.ts"), "utf8");
+const loginPage = readFileSync(resolve(process.cwd(), "src/app/(auth)/login/page.tsx"), "utf8");
+const authConfirmation = readFileSync(resolve(process.cwd(), "src/app/auth/confirm/route.ts"), "utf8");
 const platformAdminPanel = readFileSync(
   resolve(process.cwd(), "src/components/platform-admin-panel.tsx"),
   "utf8",
@@ -212,6 +214,12 @@ describe("database security migration", () => {
   it("renders platform dates in one explicit timezone on server and browser", () => {
     expect(platformAdminPanel.match(/timeZone: "Europe\/Rome"/g)).toHaveLength(1);
     expect(platformAdminPanel).not.toContain("T12:00:00`");
+  });
+
+  it("routes only platform administrators to the platform console", () => {
+    expect(loginPage).toContain("defaultLandingPath(member.roleKey, member.isPlatformAdmin)");
+    expect(authConfirmation).toContain('.from("platform_admins")');
+    expect(authConfirmation).not.toContain('member?.role === "admin"');
   });
 
   it("permanently deletes a tenant only after exact confirmation and protects the platform office", () => {

@@ -28,7 +28,7 @@ export function PilgrimForm({ tripOptions = [] }: { tripOptions?: Array<{ id: st
   }
 
   return (
-    <form className="editor-layout" onSubmit={handleSubmit}>
+    <form className="editor-layout" method="post" onSubmit={handleSubmit}>
       <aside className="editor-steps">
         <Link href="/pellegrini"><ChevronLeft size={15} /> Torna all’elenco</Link>
         <p className="nav-label">Nuovo pellegrino</p>

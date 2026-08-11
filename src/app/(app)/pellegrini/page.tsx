@@ -22,7 +22,7 @@ export default async function PilgrimsPage({ searchParams }: { searchParams: Pro
         action={canManage ? <><a className="button button-secondary" href="/api/exports/pilgrims"><Download size={15} /> Esporta</a><Link className="button button-primary" href="/pellegrini/nuovo"><Plus size={15} /> Nuovo pellegrino</Link></> : undefined}
       />
       <div className="summary-strip">
-        <span><strong>{pilgrims.length}</strong> attivi</span><span><strong>{pilgrims.filter((item) => !visibleMissingItems(item.missingItems).length).length}</strong> completi</span><span><strong>{pilgrims.filter((item) => visibleMissingItems(item.missingItems).length).length}</strong> da verificare</span><span><strong>{pilgrims.filter((item) => item.status === "In attesa").length}</strong> in attesa</span>
+        <span><strong>{pilgrims.length}</strong> attivi</span><span><strong>{pilgrims.filter((item) => !visibleMissingItems(item.missingItems).length).length}</strong> completi</span><span><strong>{pilgrims.filter((item) => visibleMissingItems(item.missingItems).length).length}</strong> da verificare</span>
       </div>
       <PilgrimTable data={pilgrims} initialQuery={q.slice(0, 120)} canViewPayments={canSeePayments} />
     </>

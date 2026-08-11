@@ -14,7 +14,6 @@ export default async function TripsPage() {
   return (
     <>
       <PageHeader eyebrow="Pianificazione" title="Viaggi" description="Dalla bozza alla partenza: persone, servizi, logistica e incassi." action={canManage ? <Link href="/viaggi/nuovo" className="button button-primary"><Plus size={15} /> Nuovo viaggio</Link> : undefined} />
-      <div className="view-toolbar"><div className="segmented"><span className="active">Viaggi disponibili <b>{trips.length}</b></span></div></div>
       {trips.length ? <div className="trip-grid">{trips.map((trip) => <TripCard trip={trip} canViewPayments={canSeePayments} key={trip.id} />)}</div> : <div className="empty-state"><h2>Nessun viaggio</h2><p>{canManage ? "Crea la prima partenza per iniziare la pianificazione." : "Nessuna partenza disponibile."}</p>{canManage ? <Link href="/viaggi/nuovo" className="button button-primary"><Plus size={15} /> Crea viaggio</Link> : null}</div>}
     </>
   );

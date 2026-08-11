@@ -26,7 +26,7 @@ export function TripForm() {
   }
 
   return (
-    <form className="editor-layout" onSubmit={handleSubmit}>
+    <form className="editor-layout" method="post" onSubmit={handleSubmit}>
       <aside className="editor-steps">
         <Link href="/viaggi"><ChevronLeft size={15} /> Torna ai viaggi</Link>
         <p className="nav-label">Nuova partenza</p>

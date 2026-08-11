@@ -20,10 +20,10 @@ export async function GET(request: NextRequest) {
         redirectTo.pathname = "/imposta-password";
       } else if (supabase) {
         const { data: authData } = await supabase.auth.getUser();
-        const { data: member } = authData.user
-          ? await supabase.from("organization_members").select("role").eq("user_id", authData.user.id).eq("is_active", true).maybeSingle()
+        const { data: platformAdmin } = authData.user
+          ? await supabase.from("platform_admins").select("user_id").eq("user_id", authData.user.id).eq("is_active", true).maybeSingle()
           : { data: null };
-        redirectTo.pathname = member?.role === "admin" ? "/admin" : "/dashboard";
+        redirectTo.pathname = platformAdmin ? "/admin" : "/dashboard";
       }
       return NextResponse.redirect(redirectTo);
     }

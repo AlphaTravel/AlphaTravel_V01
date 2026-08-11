@@ -50,7 +50,7 @@ export function SetPasswordForm() {
   }
 
   return (
-    <form className="login-card" onSubmit={submit}>
+    <form className="login-card" method="post" onSubmit={submit}>
       <div><p className="eyebrow">Attivazione account</p><h2>Scegli la password</h2><p>La password resta privata e non è visibile agli amministratori.</p></div>
       {error ? <div className="form-error">{error}</div> : null}
       <label><span>Nuova password</span><div className="password-field"><input required name="password" minLength={8} pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,128}" type={show ? "text" : "password"} autoComplete="new-password" /><button type="button" onClick={() => setShow((value) => !value)} aria-label={show ? "Nascondi password" : "Mostra password"}>{show ? <EyeOff size={17} /> : <Eye size={17} />}</button></div></label>

@@ -12,7 +12,7 @@ export default async function LoginPage() {
   // an auth cookie exists. This avoids redirect loops for disabled/orphaned
   // accounts and keeps the landing page role-aware.
   const member = await getCurrentMember();
-  if (member) redirect(defaultLandingPath(member.roleKey));
+  if (member) redirect(defaultLandingPath(member.roleKey, member.isPlatformAdmin));
 
   return <Suspense fallback={<main className="login-page"><div className="login-loading">Caricamento accesso…</div></main>}><LoginForm /></Suspense>;
 }

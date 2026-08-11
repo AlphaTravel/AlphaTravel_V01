@@ -2,6 +2,8 @@
 
 Gestionale React per pellegrinaggi e viaggi di gruppo. La base include dashboard, anagrafiche, esigenze riservate, gruppi, viaggi, camere, posti pullman, programma, camminate, pagamenti, documenti, ruoli e audit.
 
+L’interfaccia espone solo le aree principali nel menu; camere, mezzi, gruppi e programma restano raccolti dentro il singolo viaggio. Le impostazioni dell’ufficio contengono soltanto nome, fuso orario e valuta, mentre la console proprietario è concentrata su uffici e credenziali.
+
 ## Stack
 
 - Next.js 16 + React 19 + TypeScript

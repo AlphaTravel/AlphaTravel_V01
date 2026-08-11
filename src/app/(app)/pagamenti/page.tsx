@@ -23,7 +23,7 @@ export default async function PaymentsPage() {
         <article className="money-card money-danger"><AlertTriangle size={20} /><span><small>Scaduto</small><strong>{formatCurrency(data.overdue)}</strong><b>{overduePositions} partecipanti</b></span></article>
       </section>
       <section className="table-card">
-        <div className="panel-header payment-table-head"><div><p className="eyebrow">Situazione aggiornata</p><h2>Quote partecipanti</h2></div>{canRecord ? <Link className="button button-primary" href="/pagamenti/nuovo"><ReceiptText size={15} /> Registra pagamento</Link> : null}</div>
+        <div className="panel-header payment-table-head"><div><p className="eyebrow">Situazione aggiornata</p><h2>Quote partecipanti</h2></div></div>
         <div className="table-scroll"><table><thead><tr><th>Pellegrino</th><th>Viaggio</th><th>Versato</th><th>Residuo</th><th>Stato</th></tr></thead><tbody>{data.positions.map((position) => <tr key={position.registrationId}><td><strong>{position.pilgrimName}</strong></td><td><strong>{position.tripName}</strong></td><td><strong>{formatCurrency(position.paid)}</strong></td><td><strong>{formatCurrency(position.remaining)}</strong><small>Quota {formatCurrency(position.agreed)}</small></td><td><StatusBadge label={position.status} /></td></tr>)}</tbody></table></div>
         <div className="table-footer"><span>{data.positions.length} posizioni</span><span>AlphaTravel non memorizza dati di carte di pagamento.</span></div>
       </section>

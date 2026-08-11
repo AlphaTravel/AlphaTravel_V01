@@ -19,7 +19,7 @@ export function OrganizationSettingsForm({ organization, canManage }: { organiza
   }
 
   return (
-    <form className="form-card" id="organizzazione" onSubmit={submit}>
+    <form className="form-card" id="organizzazione" method="post" onSubmit={submit}>
       <div className="form-card-title"><span>01</span><div><h2>Dati agenzia</h2><p>Informazioni applicate all’intero workspace.</p></div></div>
       {message ? <div className={message.ok ? "success-banner" : "form-error form-error-block"}>{message.text}</div> : null}
       <div className="form-grid">

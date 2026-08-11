@@ -43,7 +43,7 @@ export function DocumentManager({ pilgrimId, documents, canUpload, canDelete }: 
   return (
     <div className="admin-sections">
       {notice ? <div className={notice.ok ? "success-banner" : "form-error form-error-block"}>{notice.message}</div> : null}
-      {canUpload ? <form className="form-card" onSubmit={upload} encType="multipart/form-data">
+      {canUpload ? <form className="form-card" method="post" onSubmit={upload} encType="multipart/form-data">
         <div className="form-card-title"><span><Upload size={18} /></span><div><h2>Carica documento</h2><p>PDF o immagine, massimo 4 MB. Il contenuto viene verificato prima del salvataggio.</p></div></div>
         <input type="hidden" name="pilgrimId" value={pilgrimId} />
         <div className="form-grid">

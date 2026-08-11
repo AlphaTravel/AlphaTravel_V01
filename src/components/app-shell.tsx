@@ -1,18 +1,14 @@
 "use client";
 
 import {
-  Bell,
-  BusFront,
-  ChevronDown,
-  CircleHelp,
   CreditCard,
   LayoutDashboard,
+  LogOut,
   Menu,
   Route,
   Search,
   Settings,
   ShieldCheck,
-  Sparkles,
   Users,
   X,
 } from "lucide-react";
@@ -34,7 +30,6 @@ const navigation: NavigationItem[] = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { href: "/pellegrini", label: "Pellegrini", icon: Users },
   { href: "/viaggi", label: "Viaggi", icon: Route },
-  { href: "/operazioni", label: "Operazioni", icon: BusFront },
   { href: "/pagamenti", label: "Pagamenti", icon: CreditCard, roles: ["admin", "manager", "operator", "accountant"] },
 ];
 
@@ -88,17 +83,9 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
         </nav>
 
         <div className="sidebar-spacer" />
-        <div className="alpha-assistant">
-          <span><Sparkles size={16} /> Alpha Assist</span>
-          <p>Controlla automaticamente dati mancanti e conflitti organizzativi.</p>
-          <Link href="/operazioni">Apri i controlli</Link>
-        </div>
         <nav className="sidebar-nav sidebar-nav-bottom">
           <Link className={cn("nav-link", pathname.startsWith("/impostazioni") && "nav-link-active")} href="/impostazioni">
             <Settings size={18} /> Impostazioni
-          </Link>
-          <Link className="nav-link" href="/impostazioni#supporto">
-            <CircleHelp size={18} /> Supporto
           </Link>
         </nav>
       </aside>
@@ -110,19 +97,14 @@ export function AppShell({ children, user }: { children: ReactNode; user: Curren
           </button>
           <form className="global-search" action="/pellegrini" method="get">
             <Search size={17} />
-            <input name="q" aria-label="Ricerca globale" placeholder="Cerca pellegrino, viaggio o contatto…" />
-            <kbd>⌘ K</kbd>
+            <input name="q" aria-label="Cerca pellegrino" placeholder="Cerca pellegrino per nome, viaggio o gruppo…" />
           </form>
           <div className="topbar-actions">
-            <Link className="icon-button" aria-label="Notifiche e controlli" href="/operazioni">
-              <Bell size={19} />
-              <span className="notification-dot" />
-            </Link>
             <form action={signOutAction}>
             <button className="profile-button" title="Esci da AlphaTravel" type="submit">
               <span className="avatar">{user.initials}</span>
               <span className="profile-copy"><strong>{user.name}</strong><small>{user.role}</small></span>
-              <ChevronDown size={15} />
+              <LogOut size={17} aria-hidden="true" />
             </button>
             </form>
           </div>

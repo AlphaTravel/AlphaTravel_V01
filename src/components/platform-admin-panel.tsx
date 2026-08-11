@@ -169,7 +169,7 @@ export function PlatformAdminPanel({ data }: { data: PlatformDashboardData }) {
 
               <section className="platform-essential-section">
                 <div className="platform-section-title"><div><Building2 size={17} /><span><strong>Dati essenziali</strong><small>Nome visualizzato e contatto dell’ufficio.</small></span></div></div>
-                <form className="platform-essential-form" onSubmit={saveOffice}>
+                <form className="platform-essential-form" method="post" onSubmit={saveOffice}>
                   <input type="hidden" name="organizationId" value={selected.id} />
                   <label><span>Nome ufficio</span><input name="name" defaultValue={selected.name} minLength={2} maxLength={120} required /></label>
                   <label><span>Email di contatto</span><input name="contactEmail" type="email" defaultValue={selected.contactEmail} required /></label>
@@ -183,7 +183,7 @@ export function PlatformAdminPanel({ data }: { data: PlatformDashboardData }) {
                   {selected.members.map((member) => (
                     <details className="platform-access-item" key={member.userId}>
                       <summary><i>{initials(member.displayName)}</i><span><strong>{member.displayName}</strong><small>@{member.username} · {member.isActive ? "attivo" : "sospeso"}</small></span><ChevronRight size={16} /></summary>
-                      <form onSubmit={(event) => saveMember(event, member.userId)}>
+                      <form method="post" onSubmit={(event) => saveMember(event, member.userId)}>
                         <input type="hidden" name="organizationId" value={selected.id} />
                         <input type="hidden" name="userId" value={member.userId} />
                         <input type="hidden" name="isActive" value={String(member.isActive)} />
@@ -211,7 +211,7 @@ export function PlatformAdminPanel({ data }: { data: PlatformDashboardData }) {
         <div className="platform-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateOfficeOpen(false); }}>
           <section className="platform-modal platform-modal-small" role="dialog" aria-modal="true" aria-labelledby="new-office-title">
             <header><div><p>Nuovo cliente</p><h2 id="new-office-title">Aggiungi ufficio</h2></div><button type="button" aria-label="Chiudi" onClick={() => setCreateOfficeOpen(false)}><X size={18} /></button></header>
-            <form onSubmit={createOffice}>
+            <form method="post" onSubmit={createOffice}>
               <div className="platform-form-grid">
                 <label><span>Nome ufficio</span><input name="name" minLength={2} maxLength={120} required autoFocus /></label>
                 <label><span>Email di contatto</span><input name="contactEmail" type="email" required /></label>
@@ -227,7 +227,7 @@ export function PlatformAdminPanel({ data }: { data: PlatformDashboardData }) {
         <div className="platform-modal-backdrop" role="presentation" onMouseDown={(event) => { if (event.target === event.currentTarget) setCreateMemberOpen(false); }}>
           <section className="platform-modal platform-modal-small" role="dialog" aria-modal="true" aria-labelledby="new-user-title">
             <header><div><p>{selected.name}</p><h2 id="new-user-title">Nuovo accesso</h2></div><button type="button" aria-label="Chiudi" onClick={() => setCreateMemberOpen(false)}><X size={18} /></button></header>
-            <form onSubmit={createMember}>
+            <form method="post" onSubmit={createMember}>
               <input type="hidden" name="organizationId" value={selected.id} />
               <div className="platform-form-grid"><label><span>Nome</span><input name="displayName" minLength={2} maxLength={120} required autoFocus /></label><label><span>Username</span><input name="username" pattern="[A-Za-z][A-Za-z0-9._-]{2,31}" required /></label><label><span>Ruolo</span><select name="role" defaultValue="operator">{roleOptions.map((role) => <option value={role.value} key={role.value}>{role.label}</option>)}</select></label><label><span>Password</span><input name="password" type="password" minLength={8} maxLength={128} pattern="(?=.*[A-Za-z])(?=.*[0-9]).{8,128}" title="Almeno 8 caratteri, con una lettera e un numero" autoComplete="new-password" required /></label></div>
               <footer><button className="platform-secondary-button" type="button" onClick={() => setCreateMemberOpen(false)}>Annulla</button><button className="platform-primary-button" disabled={busy === "create-member"} type="submit">{busy === "create-member" ? <LoaderCircle className="spin" size={16} /> : <UserPlus size={16} />} Crea accesso</button></footer>

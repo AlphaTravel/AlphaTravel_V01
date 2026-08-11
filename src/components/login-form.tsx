@@ -52,7 +52,7 @@ export function LoginForm() {
         <div className="login-security"><ShieldCheck size={20} /><span><strong>Progettato per dati sensibili</strong><small>Permessi granulari, audit e protezioni a livello database.</small></span></div>
       </section>
       <section className="login-form-panel">
-        <form className="login-card" onSubmit={handleSubmit}>
+        <form className="login-card" method="post" onSubmit={handleSubmit}>
           <input type="hidden" name="next" value={searchParams.get("next") ?? ""} />
           <div><p className="eyebrow">Area riservata</p><h2>Bentornato</h2><p>Accedi al workspace della tua agenzia.</p></div>
           {passwordUpdated ? <div className="success-banner">Password impostata. Ora puoi accedere.</div> : null}

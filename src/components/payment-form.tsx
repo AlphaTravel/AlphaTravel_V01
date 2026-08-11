@@ -28,7 +28,7 @@ export function PaymentForm({ positions }: { positions: PaymentPosition[] }) {
   }
 
   return (
-    <form className="editor-layout" onSubmit={submit}>
+    <form className="editor-layout" method="post" onSubmit={submit}>
       <aside className="editor-steps"><Link href="/pagamenti"><ChevronLeft size={15} /> Torna ai pagamenti</Link><p className="nav-label">Nuovo movimento</p></aside>
       <div className="editor-main">
         <div className="editor-heading"><div><p className="eyebrow">Contabilità</p><h1>Registra un pagamento</h1><p>Il registro non memorizza numeri di carta o credenziali bancarie.</p></div></div>

@@ -32,6 +32,13 @@ describe("interactive control wiring", () => {
     expect(invalid).toEqual([]);
   });
 
+  it("uses POST as the safe fallback for every client-managed form", () => {
+    const invalid = files.flatMap((file) => openings(readFileSync(file, "utf8"), "form")
+      .filter((tag) => tag.includes("onSubmit=") && !tag.includes('method="post"'))
+      .map((tag) => `${relative(root, file)}: ${tag.slice(0, 120)}`));
+    expect(invalid).toEqual([]);
+  });
+
   it("gives every Next link and anchor a destination", () => {
     const invalid = files.flatMap((file) => [
       ...openings(readFileSync(file, "utf8"), "Link"),
@@ -44,6 +51,6 @@ describe("interactive control wiring", () => {
     const source = files.map((file) => readFileSync(file, "utf8")).join("\n");
     expect(openings(source, "button").length).toBeGreaterThanOrEqual(40);
     expect(openings(source, "form").length).toBeGreaterThanOrEqual(25);
-    expect(openings(source, "Link").length + openings(source, "a").length).toBeGreaterThanOrEqual(45);
+    expect(openings(source, "Link").length + openings(source, "a").length).toBeGreaterThanOrEqual(40);
   });
 });

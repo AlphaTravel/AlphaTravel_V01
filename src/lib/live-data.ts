@@ -77,6 +77,48 @@ export async function getTrips(): Promise<Trip[]> {
   });
 }
 
+export type DashboardAttention = {
+  missingDocuments: number;
+  openBalances: number;
+  missingRooms: number;
+  missingSeats: number;
+  specialMenus: number;
+};
+
+export async function getDashboardAttention(): Promise<DashboardAttention> {
+  const empty = { missingDocuments: 0, openBalances: 0, missingRooms: 0, missingSeats: 0, specialMenus: 0 };
+  const supabase = await createClient();
+  if (!supabase) return empty;
+
+  const { data, error } = await supabase
+    .from("registrations")
+    .select("agreed_price,status,trips(ends_on),pilgrims(document_expiry,pilgrim_health_profiles(dietary_requirements,allergies)),payments(amount,status),room_assignments(id),seat_assignments(id)")
+    .neq("status", "cancelled");
+  if (error) {
+    console.error("getDashboardAttention failed", error.code);
+    return empty;
+  }
+
+  return (data as unknown as Row[]).reduce<DashboardAttention>((summary, registration) => {
+    const pilgrim = row(registration.pilgrims);
+    const health = row(pilgrim?.pilgrim_health_profiles);
+    const trip = row(registration.trips);
+    const expiry = text(pilgrim?.document_expiry);
+    const tripEnd = text(trip?.ends_on);
+    const paid = rows(registration.payments).reduce((sum, payment) => sum
+      + (["paid", "partial"].includes(text(payment.status))
+        ? numberValue(payment.amount)
+        : text(payment.status) === "refunded" ? -numberValue(payment.amount) : 0), 0);
+
+    if (!expiry || (tripEnd && expiry < tripEnd)) summary.missingDocuments += 1;
+    if (paid < numberValue(registration.agreed_price)) summary.openBalances += 1;
+    if (!rows(registration.room_assignments).length) summary.missingRooms += 1;
+    if (!rows(registration.seat_assignments).length) summary.missingSeats += 1;
+    if (text(health?.dietary_requirements) || text(health?.allergies)) summary.specialMenus += 1;
+    return summary;
+  }, { ...empty });
+}
+
 export async function getPilgrims(): Promise<Pilgrim[]> {
   const supabase = await createClient();
   if (!supabase) return [];
