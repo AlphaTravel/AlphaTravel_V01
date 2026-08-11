@@ -10,7 +10,7 @@ export default async function AdminPage() {
       <header className="platform-page-header">
         <div>
           <p className="platform-kicker">Amministrazione</p>
-          <h1>Uffici clienti</h1>
+          <h1>Gestione uffici</h1>
           <p>Crea gli uffici, assegna le credenziali e controlla chi può accedere ad AlphaTravel.</p>
         </div>
         <div className="platform-live"><span /> Sistema operativo</div>

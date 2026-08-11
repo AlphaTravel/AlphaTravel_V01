@@ -69,7 +69,7 @@ export function TripForm() {
           </div>
           <div className="inline-info"><Info size={16} /> Non vengono gestiti dati di carte: i pagamenti online useranno un fornitore certificato esterno.</div>
         </section>
-        <section className="form-card"><div className="form-card-title"><span>04</span><div><h2>Organizzazione operativa</h2><p>Dopo la creazione potrai configurare realmente strutture, camere, mezzi, posti, iscrizioni e programma dalla pagina Logistica del viaggio.</p></div></div></section>
+        <section className="form-card"><div className="form-card-title"><span>04</span><div><h2>Organizzazione del viaggio</h2><p>Dopo la creazione troverai partecipanti, camere, trasporti e programma nella sezione “Organizza viaggio”.</p></div></div></section>
         <div className="editor-bottom"><span>Lo stato iniziale sarà “Bozza”.</span><button className="button button-primary" disabled={loading} type="submit">{loading ? "Creazione…" : "Crea viaggio"}</button></div>
       </div>
     </form>

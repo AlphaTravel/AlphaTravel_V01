@@ -12,7 +12,7 @@ export function PlatformAdminShell({ children, admin }: { children: React.ReactN
         <Link href="/admin" className="platform-brand"><span><Plane size={20} /></span><div><strong>AlphaTravel</strong><small>Platform console</small></div></Link>
         <nav aria-label="Navigazione piattaforma">
           <p>Gestione</p>
-          <a href="#offices"><Building2 size={17} /> Uffici clienti</a>
+          <a href="#offices"><Building2 size={17} /> Uffici</a>
         </nav>
         <div className="platform-sidebar-spacer" />
         <Link className="platform-workspace-link" href="/dashboard">Apri workspace agenzia</Link>

@@ -56,7 +56,7 @@ export function PilgrimTable({ data, initialQuery = "", canViewPayments = false 
             <tr>
               <th>Pellegrino</th>
               <th>Viaggio e gruppo</th>
-              <th>Organizzazione</th>
+              <th>Camera e posto</th>
               {canViewPayments ? <th>Pagamento</th> : null}
               <th>Stato</th>
               <th><span className="sr-only">Apri</span></th>

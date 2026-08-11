@@ -157,7 +157,7 @@ export async function getPilgrims(): Promise<Pilgrim[]> {
     const dietary = [text(health?.dietary_requirements), text(health?.allergies)].filter(Boolean);
     return {
       id: text(item.id), initials: `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase(), name: `${firstName} ${lastName}`.trim(),
-      email: text(item.email, "Email non indicata"), phone: text(item.phone, "Telefono non indicato"), birthDate: text(item.birth_date, "1900-01-01"), city: text(item.city, "—"),
+      email: text(item.email, "Email non indicata"), phone: text(item.phone, "Telefono non indicato"), birthDate: text(item.birth_date), city: text(item.city, "—"),
       group: text(group?.name, text(registration?.notes, "Nessun gruppo")), tripId: text(registration?.trip_id), tripName: text(trip?.title, "Non iscritto"), status: pilgrimStatus(registration?.status),
       paymentStatus,
       paid,
@@ -165,7 +165,7 @@ export async function getPilgrims(): Promise<Pilgrim[]> {
       room: assignedRoom ? `${text(accommodation?.name, "Struttura")} · ${text(assignedRoom.room_number)}` : null,
       coachSeat: assignedSeat ? `${text(vehicle?.name, "Mezzo")} · ${text(assignedSeat.seat_label)}` : null,
       dietary, mobility: mobility(health?.mobility), walkingKm: numberValue(health?.indicative_walking_km),
-      missingItems: needs, emergencyContact: contact ? `${text(contact.name)} · ${text(contact.phone)}` : "Non indicato", documentExpiry: text(item.document_expiry, "1900-01-01"),
+      missingItems: needs, emergencyContact: contact ? `${text(contact.name)} · ${text(contact.phone)}` : "Non indicato", documentExpiry: text(item.document_expiry),
     };
   });
 }

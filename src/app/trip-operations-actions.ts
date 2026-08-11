@@ -19,7 +19,6 @@ async function getOperatorContext() {
 function refreshTrip(tripId: string) {
   revalidatePath(`/viaggi/${tripId}`);
   revalidatePath(`/viaggi/${tripId}/logistica`);
-  revalidatePath("/operazioni");
   revalidatePath("/dashboard");
 }
 

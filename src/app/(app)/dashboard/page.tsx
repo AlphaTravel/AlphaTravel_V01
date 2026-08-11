@@ -17,9 +17,9 @@ export default async function DashboardPage() {
   const alertCandidates: OperationalAlert[] = [
     { kind: "documents", tone: "rose", count: attention.missingDocuments, title: "Documenti da verificare", detail: "Mancanti o in scadenza prima del viaggio", href: "/pellegrini" },
     ...(canSeePayments ? [{ kind: "balances" as const, tone: "amber" as const, count: attention.openBalances, title: "Saldi da incassare", detail: "Posizioni con quota ancora aperta", href: "/pagamenti" }] : []),
-    { kind: "rooms", tone: "violet", count: attention.missingRooms, title: "Persone senza camera", detail: "Iscrizioni ancora da assegnare", href: "/operazioni" },
-    { kind: "seats", tone: "blue", count: attention.missingSeats, title: "Persone senza posto", detail: "Iscrizioni senza posto su un mezzo", href: "/operazioni" },
-    { kind: "menus", tone: "green", count: attention.specialMenus, title: "Menu speciali", detail: "Esigenze alimentari da coordinare", href: "/operazioni" },
+    { kind: "rooms", tone: "violet", count: attention.missingRooms, title: "Persone senza camera", detail: "Apri un viaggio per completare le camere", href: "/viaggi" },
+    { kind: "seats", tone: "blue", count: attention.missingSeats, title: "Persone senza posto", detail: "Apri un viaggio per assegnare i posti", href: "/viaggi" },
+    { kind: "menus", tone: "green", count: attention.specialMenus, title: "Menu speciali", detail: "Apri un viaggio per coordinare le esigenze", href: "/viaggi" },
   ];
   const alerts = alertCandidates.filter((alert) => alert.count > 0);
   const attentionCount = alerts.reduce((sum, alert) => sum + alert.count, 0);
