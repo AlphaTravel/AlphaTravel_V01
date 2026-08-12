@@ -42,9 +42,12 @@ export function PilgrimTable({ data, initialQuery = "", canViewPayments = false 
             <Filter size={15} />
             <select value={status} onChange={(event) => setStatus(event.target.value)} aria-label="Filtra per stato">
               <option>Tutti</option>
-              <option>Confermato</option>
+              <option>Pronto</option>
               <option>In attesa</option>
+              <option>Da organizzare</option>
               <option>Da completare</option>
+              <option>Non iscritto</option>
+              <option>Annullato</option>
             </select>
           </label>
         </div>
@@ -73,8 +76,8 @@ export function PilgrimTable({ data, initialQuery = "", canViewPayments = false 
                 </td>
                 <td><strong>{pilgrim.tripName}</strong><small>{pilgrim.group}</small></td>
                 <td>
-                  <strong>{pilgrim.room ?? "Camera da assegnare"}</strong>
-                  <small>{pilgrim.coachSeat ?? "Posto da assegnare"}</small>
+                  <strong>{pilgrim.room ?? (pilgrim.roomRequired ? "Camera da assegnare" : "Camera non prevista")}</strong>
+                  <small>{pilgrim.coachSeat ?? (pilgrim.seatRequired ? "Posto da assegnare" : "Posto non previsto")}</small>
                 </td>
                 {canViewPayments ? <td>
                   <strong>{formatCurrency(pilgrim.paid)} / {formatCurrency(pilgrim.total)}</strong>
@@ -82,8 +85,8 @@ export function PilgrimTable({ data, initialQuery = "", canViewPayments = false 
                 </td> : null}
                 <td>
                   <StatusBadge label={pilgrim.status} />
-                  {(canViewPayments ? pilgrim.missingItems : pilgrim.missingItems.filter((item) => item !== "Saldo")).length ? (
-                    <small className="warning-copy"><AlertTriangle size={12} /> {(canViewPayments ? pilgrim.missingItems : pilgrim.missingItems.filter((item) => item !== "Saldo")).length} elementi</small>
+                  {(canViewPayments ? pilgrim.missingItems : pilgrim.missingItems.filter((item) => !item.startsWith("Saldo"))).length ? (
+                    <small className="warning-copy" title={(canViewPayments ? pilgrim.missingItems : pilgrim.missingItems.filter((item) => !item.startsWith("Saldo"))).join(", ")}><AlertTriangle size={12} /> {(canViewPayments ? pilgrim.missingItems : pilgrim.missingItems.filter((item) => !item.startsWith("Saldo"))).join(" · ")}</small>
                   ) : null}
                 </td>
                 <td><Link className="row-link" href={`/pellegrini/${pilgrim.id}`} aria-label={`Apri ${pilgrim.name}`}><ChevronRight size={18} /></Link></td>

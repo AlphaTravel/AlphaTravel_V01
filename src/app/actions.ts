@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { getCurrentMember } from "@/lib/live-data";
 import { createClient } from "@/lib/supabase/server";
+import { createTripSchema, updateTripSchema } from "@/lib/trip-schemas";
 
 export type FormActionResult = { ok: boolean; id?: string; message: string };
 
@@ -37,42 +38,7 @@ const pilgrimSchema = z.object({
   operationalMessagesAllowed: z.boolean().default(false),
 });
 
-const tripSchema = z.object({
-  title: z.string().trim().min(3).max(160),
-  code: z.string().trim().regex(/^[A-Za-z0-9-]{3,20}$/),
-  destination: z.string().trim().min(2).max(160),
-  description: optionalText,
-  startDate: z.iso.date(),
-  endDate: z.iso.date(),
-  minimum: z.coerce.number().int().min(1).max(5000),
-  capacity: z.coerce.number().int().min(1).max(5000),
-  registrationDeadline: z.union([z.iso.date(), z.literal("")]),
-  price: z.coerce.number().min(0).max(1000000),
-  deposit: z.union([z.coerce.number().min(0).max(1000000), z.literal("")]),
-  singleSupplement: z.union([z.coerce.number().min(0).max(1000000), z.literal("")]),
-  balanceDeadline: z.union([z.iso.date(), z.literal("")]),
-}).refine((value) => value.endDate >= value.startDate, { message: "La data di rientro precede la partenza." })
-  .refine((value) => value.capacity >= value.minimum, { message: "La capienza è inferiore al numero minimo." });
-
 const updatePilgrimSchema = pilgrimSchema.extend({ pilgrimId: z.uuid() });
-const updateTripSchema = z.object({
-  tripId: z.uuid(),
-  title: z.string().trim().min(3).max(160),
-  code: z.string().trim().regex(/^[A-Za-z0-9-]{3,20}$/),
-  destination: z.string().trim().min(2).max(160),
-  description: optionalText,
-  startDate: z.iso.date(),
-  endDate: z.iso.date(),
-  minimum: z.coerce.number().int().min(1).max(5000),
-  capacity: z.coerce.number().int().min(1).max(5000),
-  registrationDeadline: z.union([z.iso.date(), z.literal("")]),
-  price: z.coerce.number().min(0).max(1000000),
-  deposit: z.union([z.coerce.number().min(0).max(1000000), z.literal("")]),
-  singleSupplement: z.union([z.coerce.number().min(0).max(1000000), z.literal("")]),
-  balanceDeadline: z.union([z.iso.date(), z.literal("")]),
-  walkingKm: z.coerce.number().min(0).max(10000),
-}).refine((value) => value.endDate >= value.startDate, { message: "La data di rientro precede la partenza." })
-  .refine((value) => value.capacity >= value.minimum, { message: "La capienza è inferiore al numero minimo." });
 
 function formValues(formData: FormData) {
   return Object.fromEntries(formData.entries());
@@ -104,7 +70,7 @@ export async function createPilgrimAction(formData: FormData): Promise<FormActio
 }
 
 export async function createTripAction(formData: FormData): Promise<FormActionResult> {
-  const parsed = tripSchema.safeParse(formValues(formData));
+  const parsed = createTripSchema.safeParse(formValues(formData));
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Controlla i dati inseriti." };
 
   const [member, supabase] = await Promise.all([getCurrentMember(), createClient()]);
@@ -146,7 +112,10 @@ export async function updateTripAction(formData: FormData): Promise<FormActionRe
   if (!parsed.success) return { ok: false, message: parsed.error.issues[0]?.message ?? "Controlla i dati inseriti." };
   const [member, supabase] = await Promise.all([getCurrentMember(), createClient()]);
   if (!member || !supabase || !["admin", "manager", "operator"].includes(member.roleKey)) return { ok: false, message: "Non hai i permessi per modificare i viaggi." };
-  const { error } = await supabase.from("trips").update({ code: parsed.data.code.toUpperCase(), title: parsed.data.title, destination: parsed.data.destination, description: parsed.data.description || null, starts_on: parsed.data.startDate, ends_on: parsed.data.endDate, registration_deadline: parsed.data.registrationDeadline || null, minimum_participants: parsed.data.minimum, capacity: parsed.data.capacity, base_price: parsed.data.price, deposit_amount: parsed.data.deposit || 0, single_room_supplement: parsed.data.singleSupplement || 0, balance_due_on: parsed.data.balanceDeadline || null, planned_walking_km: parsed.data.walkingKm }).eq("id", parsed.data.tripId).eq("organization_id", member.organizationId);
+  const { count: activeRegistrations, error: countError } = await supabase.from("registrations").select("id", { count: "exact", head: true }).eq("trip_id", parsed.data.tripId).neq("status", "cancelled");
+  if (countError) return { ok: false, message: "Non è stato possibile verificare la capienza del viaggio." };
+  if ((activeRegistrations ?? 0) > parsed.data.capacity) return { ok: false, message: `La capienza non può essere inferiore ai ${activeRegistrations} partecipanti già iscritti.` };
+  const { error } = await supabase.from("trips").update({ code: parsed.data.code.toUpperCase(), title: parsed.data.title, destination: parsed.data.destination, description: parsed.data.description || null, status: parsed.data.status, starts_on: parsed.data.startDate, ends_on: parsed.data.endDate, registration_deadline: parsed.data.registrationDeadline || null, minimum_participants: parsed.data.minimum, capacity: parsed.data.capacity, base_price: parsed.data.price, deposit_amount: parsed.data.deposit || 0, single_room_supplement: parsed.data.singleSupplement || 0, balance_due_on: parsed.data.balanceDeadline || null, planned_walking_km: parsed.data.walkingKm }).eq("id", parsed.data.tripId).eq("organization_id", member.organizationId);
   if (error) {
     console.error("updateTripAction failed", error.code);
     return { ok: false, message: error.code === "23505" ? "Codice viaggio già utilizzato." : "Viaggio non aggiornato." };

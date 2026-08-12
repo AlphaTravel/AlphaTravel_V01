@@ -1,6 +1,8 @@
 import "server-only";
 
+import { hasOverduePayment, latestIdentityDocumentExpiry, paidAmount, registrationReadiness } from "./registration-readiness";
 import { createClient } from "./supabase/server";
+import type { PilgrimStatus } from "./types";
 
 type Row = Record<string, unknown>;
 
@@ -29,6 +31,8 @@ export type TripParticipant = {
   group: string;
   groupId: string | null;
   status: string;
+  readinessStatus: PilgrimStatus;
+  missingItems: string[];
   roomPreference: string;
   dietary: string[];
   mobility: string;
@@ -88,7 +92,7 @@ export async function getTripOperationsData(tripId: string): Promise<TripOperati
   if (!supabase) return empty;
 
   const [registrationsResult, accommodationsResult, vehiclesResult, itineraryResult, pilgrimsResult, groupsResult] = await Promise.all([
-    supabase.from("registrations").select("id,pilgrim_id,group_id,status,agreed_price,room_preference,preferred_roommate,trip_groups(name),pilgrims(first_name,last_name,pilgrim_health_profiles(mobility,dietary_requirements,allergies)),payments(amount,status)").eq("trip_id", tripId).neq("status", "cancelled").order("created_at"),
+    supabase.from("registrations").select("id,pilgrim_id,group_id,status,agreed_price,room_preference,preferred_roommate,trip_groups(name),trips(ends_on,balance_due_on),pilgrims(first_name,last_name,document_expiry,documents(kind,expires_on),pilgrim_health_profiles(mobility,dietary_requirements,allergies)),payments(amount,status,due_on)").eq("trip_id", tripId).neq("status", "cancelled").order("created_at"),
     supabase.from("accommodations").select("id,name,city").eq("trip_id", tripId).order("name"),
     supabase.from("vehicles").select("id,name,vehicle_type,operator_name,capacity").eq("trip_id", tripId).order("name"),
     supabase.from("itinerary_items").select("id,starts_at,ends_at,item_type,title,details,location,walking_km,difficulty,accessible_alternative").eq("trip_id", tripId).order("starts_at"),
@@ -156,7 +160,22 @@ export async function getTripOperationsData(tripId: string): Promise<TripOperati
     const pilgrim = row(registration.pilgrims);
     const health = row(pilgrim?.pilgrim_health_profiles);
     const name = nameByRegistration.get(text(registration.id)) ?? "Pellegrino";
-    const paid = rows(registration.payments).reduce((sum, payment) => sum + (["paid", "partial"].includes(text(payment.status)) ? numberValue(payment.amount) : text(payment.status) === "refunded" ? -numberValue(payment.amount) : 0), 0);
+    const paid = paidAmount(rows(registration.payments));
+    const room = roomByRegistration.get(text(registration.id)) ?? null;
+    const seat = seatByRegistration.get(text(registration.id)) ?? null;
+    const trip = row(registration.trips);
+    const readiness = registrationReadiness({
+      hasRegistration: true,
+      registrationStatus: text(registration.status),
+      documentExpiry: latestIdentityDocumentExpiry(pilgrim),
+      tripEnd: text(trip?.ends_on),
+      hasRoom: accommodationRows.length === 0 || Boolean(room),
+      hasSeat: vehicleRows.length === 0 || Boolean(seat),
+      agreed: numberValue(registration.agreed_price),
+      paid,
+      balanceDueOn: text(trip?.balance_due_on),
+      hasOverduePayment: hasOverduePayment(rows(registration.payments)),
+    });
     return {
       registrationId: text(registration.id),
       pilgrimId: text(registration.pilgrim_id),
@@ -165,11 +184,13 @@ export async function getTripOperationsData(tripId: string): Promise<TripOperati
       group: text(row(registration.trip_groups)?.name, "Nessun gruppo"),
       groupId: text(registration.group_id) || null,
       status: text(registration.status),
+      readinessStatus: readiness.status,
+      missingItems: readiness.missingItems,
       roomPreference: text(registration.room_preference, "Nessuna preferenza"),
       dietary: [text(health?.dietary_requirements), text(health?.allergies)].filter(Boolean),
       mobility: text(health?.mobility, "independent"),
-      room: roomByRegistration.get(text(registration.id)) ?? null,
-      seat: seatByRegistration.get(text(registration.id)) ?? null,
+      room,
+      seat,
       agreed: numberValue(registration.agreed_price),
       paid,
     };

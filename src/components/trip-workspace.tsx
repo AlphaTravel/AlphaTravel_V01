@@ -4,21 +4,15 @@ import { AlertTriangle, BedDouble, BusFront, CalendarDays, CheckCircle2, CircleD
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import type { TripOperationsData, TripParticipant } from "@/lib/trip-operations-data";
-import type { PaymentStatus, PilgrimStatus, Trip } from "@/lib/types";
+import type { PaymentStatus, Trip } from "@/lib/types";
 import { cn, formatCurrency, formatDate, percentage } from "@/lib/utils";
 import { StatusBadge } from "./status-badge";
 
 const tabs = ["Panoramica", "Partecipanti", "Camere", "Pullman", "Programma", "Pagamenti"] as const;
 type Tab = (typeof tabs)[number];
 
-function participantStatus(value: string): PilgrimStatus {
-  if (value === "confirmed") return "Confermato";
-  if (value === "pending") return "In attesa";
-  return "Da completare";
-}
-
 function paymentStatus(participant: TripParticipant): PaymentStatus {
-  if (participant.agreed > 0 && participant.paid >= participant.agreed) return "Pagato";
+  if (participant.paid >= participant.agreed) return "Pagato";
   if (participant.paid > 0) return "Parziale";
   return "Da pagare";
 }
@@ -44,13 +38,13 @@ export function TripWorkspace({ trip, data, canManage, canViewPayments, canRecor
 function Overview({ trip, data, canViewSensitive, canViewPayments }: { trip: Trip; data: TripOperationsData; canViewSensitive: boolean; canViewPayments: boolean }) {
   const menus = data.participants.filter((participant) => participant.dietary.length > 0).length;
   const assisted = data.participants.filter((participant) => participant.mobility !== "independent").length;
-  const missingRooms = data.participants.filter((participant) => !participant.room).length;
-  const missingSeats = data.participants.filter((participant) => !participant.seat).length;
+  const missingRooms = data.accommodations.length ? data.participants.filter((participant) => !participant.room).length : 0;
+  const missingSeats = data.vehicles.length ? data.participants.filter((participant) => !participant.seat).length : 0;
   const openBalances = data.participants.filter((participant) => participant.agreed > participant.paid).length;
   const issueCount = trip.checklist.documents + missingRooms + missingSeats + (canViewPayments ? openBalances : 0);
   const readiness = data.participants.length ? Math.max(0, Math.round(100 - (issueCount / Math.max(1, data.participants.length * 4)) * 100)) : 0;
-  const confirmed = data.participants.filter((participant) => participant.status === "confirmed").length;
-  const pending = data.participants.length - confirmed;
+  const ready = data.participants.filter((participant) => participant.readinessStatus === "Pronto").length;
+  const pending = data.participants.length - ready;
   const itineraryWalking = data.itinerary.reduce((sum, item) => sum + item.walkingKm, 0);
   const tasks = [
     { icon: FileText, title: "Documenti da verificare", value: trip.checklist.documents, tone: "rose" },
@@ -61,7 +55,7 @@ function Overview({ trip, data, canViewSensitive, canViewPayments }: { trip: Tri
   return (
     <div className="workspace-grid">
       <section className="panel panel-span-2"><div className="panel-header"><div><p className="eyebrow">Stato operativo</p><h2>Preparazione del viaggio</h2></div><span className="readiness">{readiness}%</span></div><div className="large-progress"><span style={{ width: `${readiness}%` }} /></div><div className="task-grid">{tasks.map(({ icon: Icon, title, value, tone }) => <div className="task-tile" key={title}><span className={`alert-icon alert-icon-${tone}`}><Icon size={17} /></span><strong>{value}</strong><small>{title}</small></div>)}</div></section>
-      <section className="panel"><div className="panel-header"><div><p className="eyebrow">Capienza</p><h2>Partecipanti</h2></div><Users size={20} /></div><div className="capacity-donut" style={{ "--progress": `${percentage(data.participants.length, trip.capacity) * 3.6}deg` } as CSSProperties}><span><strong>{data.participants.length}</strong><small>su {trip.capacity}</small></span></div><div className="legend-row"><span><i className="dot dot-blue" /> Confermati {confirmed}</span><span><i className="dot dot-amber" /> Altri {pending}</span></div></section>
+      <section className="panel"><div className="panel-header"><div><p className="eyebrow">Capienza</p><h2>Partecipanti</h2></div><Users size={20} /></div><div className="capacity-donut" style={{ "--progress": `${percentage(data.participants.length, trip.capacity) * 3.6}deg` } as CSSProperties}><span><strong>{data.participants.length}</strong><small>su {trip.capacity}</small></span></div><div className="legend-row"><span><i className="dot dot-blue" /> Pronti {ready}</span><span><i className="dot dot-amber" /> Da gestire {pending}</span></div></section>
       <section className="panel"><div className="panel-header"><div><p className="eyebrow">Servizi configurati</p><h2>Inventario</h2></div><CalendarDays size={20} /></div><div className="deadline-list"><span><b>{data.accommodations.length}</b><p><strong>Strutture</strong><small>{data.rooms.length} camere</small></p></span><span><b>{data.vehicles.length}</b><p><strong>Mezzi</strong><small>{data.vehicles.reduce((sum, vehicle) => sum + vehicle.seats.length, 0)} posti</small></p></span><span><b>{data.itinerary.length}</b><p><strong>Attività</strong><small>nel programma</small></p></span></div></section>
       <section className="panel panel-span-2"><div className="panel-header"><div><p className="eyebrow">Operatività</p><h2>Esigenze da presidiare</h2></div><AlertTriangle size={20} /></div><div className="needs-grid">{canViewSensitive ? <><div><Salad size={18} /><strong>{menus}</strong><span>menu speciali</span><small>dati correnti</small></div><div><Footprints size={18} /><strong>{assisted}</strong><span>assistenze</span><small>mobilità da coordinare</small></div></> : null}<div><Hotel size={18} /><strong>{data.rooms.filter((room) => room.isAccessible).length}</strong><span>camere accessibili</span><small>configurate</small></div><div><MapPinned size={18} /><strong>{itineraryWalking || trip.walkingKm} km</strong><span>camminate totali</span><small>programma operativo</small></div></div></section>
     </div>
@@ -69,7 +63,7 @@ function Overview({ trip, data, canViewSensitive, canViewPayments }: { trip: Tri
 }
 
 function Participants({ trip, data, canManage, canViewSensitive }: { trip: Trip; data: TripParticipant[]; canManage: boolean; canViewSensitive: boolean }) {
-  return <section className="panel workspace-full"><div className="panel-header"><div><p className="eyebrow">{data.length} iscritti</p><h2>Partecipanti del viaggio</h2></div>{canManage ? <Link className="button button-primary" href={`/viaggi/${trip.id}/logistica?section=participants`}><Settings2 size={15} /> Gestisci partecipanti</Link> : null}</div><div className="mini-list">{data.length ? data.map((participant) => <div className="mini-list-row" key={participant.registrationId}><span className="table-avatar">{participant.initials}</span><span><strong>{participant.name}</strong><small>{participant.group}</small></span><span><strong>{participant.room ?? "Camera mancante"}</strong><small>{participant.seat ?? "Posto mancante"}</small></span>{canViewSensitive ? <span>{participant.dietary.length ? participant.dietary.join(", ") : "Nessuna esigenza"}</span> : null}<StatusBadge label={participantStatus(participant.status)} /></div>) : <div className="empty-inline">Nessun partecipante iscritto.</div>}</div></section>;
+  return <section className="panel workspace-full"><div className="panel-header"><div><p className="eyebrow">{data.length} iscritti</p><h2>Partecipanti del viaggio</h2></div>{canManage ? <Link className="button button-primary" href={`/viaggi/${trip.id}/logistica?section=participants`}><Settings2 size={15} /> Gestisci partecipanti</Link> : null}</div><div className="mini-list">{data.length ? data.map((participant) => <div className="mini-list-row" key={participant.registrationId}><span className="table-avatar">{participant.initials}</span><span><strong>{participant.name}</strong><small>{participant.group}</small></span><span><strong>{participant.room ?? "Camera mancante"}</strong><small>{participant.seat ?? "Posto mancante"}</small></span>{canViewSensitive ? <span>{participant.dietary.length ? participant.dietary.join(", ") : "Nessuna esigenza"}</span> : null}<StatusBadge label={participant.readinessStatus} /></div>) : <div className="empty-inline">Nessun partecipante iscritto.</div>}</div></section>;
 }
 
 function RoomsBoard({ trip, data, canManage }: { trip: Trip; data: TripOperationsData; canManage: boolean }) {

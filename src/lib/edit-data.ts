@@ -9,7 +9,7 @@ function numberValue(value: unknown) { const parsed = Number(value); return Numb
 
 export type TripEditData = {
   id: string; title: string; code: string; destination: string; description: string; startDate: string; endDate: string;
-  registrationDeadline: string; minimum: number; capacity: number; price: number; deposit: number; singleSupplement: number; balanceDeadline: string; walkingKm: number;
+  status: string; registrationDeadline: string; minimum: number; capacity: number; price: number; deposit: number; singleSupplement: number; balanceDeadline: string; walkingKm: number;
 };
 
 export type PilgrimEditData = {
@@ -20,10 +20,10 @@ export type PilgrimEditData = {
 export async function getTripEditData(id: string): Promise<TripEditData | null> {
   const supabase = await createClient();
   if (!supabase) return null;
-  const { data, error } = await supabase.from("trips").select("id,title,code,destination,description,starts_on,ends_on,registration_deadline,minimum_participants,capacity,base_price,deposit_amount,single_room_supplement,balance_due_on,planned_walking_km").eq("id", id).single();
+  const { data, error } = await supabase.from("trips").select("id,title,code,destination,description,status,starts_on,ends_on,registration_deadline,minimum_participants,capacity,base_price,deposit_amount,single_room_supplement,balance_due_on,planned_walking_km").eq("id", id).single();
   if (error || !data) return null;
   const item = data as unknown as Row;
-  return { id: text(item.id), title: text(item.title), code: text(item.code), destination: text(item.destination), description: text(item.description), startDate: text(item.starts_on), endDate: text(item.ends_on), registrationDeadline: text(item.registration_deadline), minimum: numberValue(item.minimum_participants), capacity: numberValue(item.capacity), price: numberValue(item.base_price), deposit: numberValue(item.deposit_amount), singleSupplement: numberValue(item.single_room_supplement), balanceDeadline: text(item.balance_due_on), walkingKm: numberValue(item.planned_walking_km) };
+  return { id: text(item.id), title: text(item.title), code: text(item.code), destination: text(item.destination), description: text(item.description), status: text(item.status, "draft"), startDate: text(item.starts_on), endDate: text(item.ends_on), registrationDeadline: text(item.registration_deadline), minimum: numberValue(item.minimum_participants), capacity: numberValue(item.capacity), price: numberValue(item.base_price), deposit: numberValue(item.deposit_amount), singleSupplement: numberValue(item.single_room_supplement), balanceDeadline: text(item.balance_due_on), walkingKm: numberValue(item.planned_walking_km) };
 }
 
 export async function getPilgrimEditData(id: string): Promise<PilgrimEditData | null> {

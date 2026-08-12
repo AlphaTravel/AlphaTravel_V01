@@ -1,7 +1,9 @@
 import "server-only";
 
 import { createClient } from "./supabase/server";
-import type { AppRole, CurrentMember, MobilityLevel, PaymentStatus, Pilgrim, PilgrimStatus, Trip, TripStatus } from "./types";
+import { hasOverduePayment, latestIdentityDocumentExpiry, paidAmount, pickRelevantRegistration, registrationReadiness } from "./registration-readiness";
+import { todayInTimeZone } from "./time";
+import type { AppRole, CurrentMember, MobilityLevel, Pilgrim, Trip, TripStatus } from "./types";
 
 type Row = Record<string, unknown>;
 
@@ -22,13 +24,8 @@ function numberValue(value: unknown) {
 }
 
 function tripStatus(value: unknown): TripStatus {
-  const statuses: Record<string, TripStatus> = { draft: "Bozza", open: "Aperto", confirmed: "Confermato", full: "Completo", completed: "Concluso", cancelled: "Concluso" };
+  const statuses: Record<string, TripStatus> = { draft: "Bozza", open: "Aperto", confirmed: "Confermato", full: "Completo", completed: "Concluso", cancelled: "Annullato" };
   return statuses[text(value)] ?? "Bozza";
-}
-
-function pilgrimStatus(value: unknown): PilgrimStatus {
-  const statuses: Record<string, PilgrimStatus> = { confirmed: "Confermato", pending: "In attesa", incomplete: "Da completare", cancelled: "In attesa" };
-  return statuses[text(value)] ?? "Da completare";
 }
 
 function mobility(value: unknown): MobilityLevel {
@@ -42,7 +39,7 @@ export async function getTrips(): Promise<Trip[]> {
 
   const { data, error } = await supabase
     .from("trips")
-    .select("id,code,title,destination,starts_on,ends_on,status,capacity,base_price,planned_walking_km,registrations(id,status,agreed_price,payments(amount,status,due_on),room_assignments(id),seat_assignments(id),pilgrims(document_expiry)),accommodations(id),vehicles(id)")
+    .select("id,code,title,destination,starts_on,ends_on,status,capacity,base_price,planned_walking_km,registrations(id,status,agreed_price,payments(amount,status,due_on),room_assignments(id),seat_assignments(id),pilgrims(document_expiry,documents(kind,expires_on))),accommodations(id),vehicles(id)")
     .order("starts_on", { ascending: true });
   if (error) {
     console.error("getTrips failed", error.code);
@@ -50,28 +47,33 @@ export async function getTrips(): Promise<Trip[]> {
   }
 
   const tones: Trip["coverTone"][] = ["blue", "amber", "violet", "teal"];
+  const today = todayInTimeZone();
   return (data as unknown as Row[]).map((item, index) => {
     const registrations = rows(item.registrations).filter((registration) => text(registration.status) !== "cancelled");
-    const collected = registrations.reduce((sum, registration) => sum + rows(registration.payments).reduce((paymentSum, payment) => paymentSum + (["paid", "partial"].includes(text(payment.status)) ? numberValue(payment.amount) : text(payment.status) === "refunded" ? -numberValue(payment.amount) : 0), 0), 0);
+    const accommodations = rows(item.accommodations);
+    const vehicles = rows(item.vehicles);
+    const collected = registrations.reduce((sum, registration) => sum + paidAmount(rows(registration.payments)), 0);
     const revenue = registrations.reduce((sum, registration) => sum + numberValue(registration.agreed_price), 0);
     const missingDocuments = registrations.filter((registration) => {
       const pilgrim = row(registration.pilgrims);
-      const expiry = text(pilgrim?.document_expiry);
+      const expiry = latestIdentityDocumentExpiry(pilgrim);
       return !expiry || expiry < text(item.ends_on);
     }).length;
-    const missingRooms = registrations.filter((registration) => rows(registration.room_assignments).length === 0).length;
-    const missingSeats = registrations.filter((registration) => rows(registration.seat_assignments).length === 0).length;
+    const missingRooms = accommodations.length ? registrations.filter((registration) => rows(registration.room_assignments).length === 0).length : 0;
+    const missingSeats = vehicles.length ? registrations.filter((registration) => rows(registration.seat_assignments).length === 0).length : 0;
+    const storedStatus = tripStatus(item.status);
+    const automaticStatus = storedStatus === "Annullato" ? "Annullato" : storedStatus === "Concluso" || text(item.ends_on) < today ? "Concluso" : registrations.length >= numberValue(item.capacity) ? "Completo" : storedStatus;
     return {
       id: text(item.id), code: text(item.code), title: text(item.title), destination: text(item.destination),
-      startDate: text(item.starts_on), endDate: text(item.ends_on), status: tripStatus(item.status), basePrice: numberValue(item.base_price),
+      startDate: text(item.starts_on), endDate: text(item.ends_on), status: automaticStatus, basePrice: numberValue(item.base_price),
       participants: registrations.length, capacity: numberValue(item.capacity), revenue, collected,
-      hotels: rows(item.accommodations).length, coaches: rows(item.vehicles).length,
+      hotels: accommodations.length, coaches: vehicles.length,
       walkingKm: numberValue(item.planned_walking_km), leader: "Da assegnare", coverTone: tones[index % tones.length],
       checklist: {
         documents: missingDocuments,
         rooms: missingRooms,
         seats: missingSeats,
-        balances: registrations.filter((registration) => rows(registration.payments).reduce((sum, payment) => sum + (["paid", "partial"].includes(text(payment.status)) ? numberValue(payment.amount) : text(payment.status) === "refunded" ? -numberValue(payment.amount) : 0), 0) < numberValue(registration.agreed_price)).length,
+        balances: registrations.filter((registration) => paidAmount(rows(registration.payments)) < numberValue(registration.agreed_price)).length,
       },
     };
   });
@@ -92,7 +94,7 @@ export async function getDashboardAttention(): Promise<DashboardAttention> {
 
   const { data, error } = await supabase
     .from("registrations")
-    .select("agreed_price,status,trips(ends_on),pilgrims(document_expiry,pilgrim_health_profiles(dietary_requirements,allergies)),payments(amount,status),room_assignments(id),seat_assignments(id)")
+    .select("agreed_price,status,trips(ends_on,accommodations(id),vehicles(id)),pilgrims(document_expiry,documents(kind,expires_on),pilgrim_health_profiles(dietary_requirements,allergies)),payments(amount,status),room_assignments(id),seat_assignments(id)")
     .neq("status", "cancelled");
   if (error) {
     console.error("getDashboardAttention failed", error.code);
@@ -103,17 +105,14 @@ export async function getDashboardAttention(): Promise<DashboardAttention> {
     const pilgrim = row(registration.pilgrims);
     const health = row(pilgrim?.pilgrim_health_profiles);
     const trip = row(registration.trips);
-    const expiry = text(pilgrim?.document_expiry);
+    const expiry = latestIdentityDocumentExpiry(pilgrim);
     const tripEnd = text(trip?.ends_on);
-    const paid = rows(registration.payments).reduce((sum, payment) => sum
-      + (["paid", "partial"].includes(text(payment.status))
-        ? numberValue(payment.amount)
-        : text(payment.status) === "refunded" ? -numberValue(payment.amount) : 0), 0);
+    const paid = paidAmount(rows(registration.payments));
 
     if (!expiry || (tripEnd && expiry < tripEnd)) summary.missingDocuments += 1;
     if (paid < numberValue(registration.agreed_price)) summary.openBalances += 1;
-    if (!rows(registration.room_assignments).length) summary.missingRooms += 1;
-    if (!rows(registration.seat_assignments).length) summary.missingSeats += 1;
+    if (rows(trip?.accommodations).length && !rows(registration.room_assignments).length) summary.missingRooms += 1;
+    if (rows(trip?.vehicles).length && !rows(registration.seat_assignments).length) summary.missingSeats += 1;
     if (text(health?.dietary_requirements) || text(health?.allergies)) summary.specialMenus += 1;
     return summary;
   }, { ...empty });
@@ -125,7 +124,7 @@ export async function getPilgrims(): Promise<Pilgrim[]> {
 
   const { data, error } = await supabase
     .from("pilgrims")
-    .select("id,first_name,last_name,email,phone,birth_date,city,document_expiry,pilgrim_health_profiles(mobility,indicative_walking_km,dietary_requirements,allergies),emergency_contacts(name,phone,is_primary),registrations(id,trip_id,status,agreed_price,notes,trips(title),trip_groups(name),payments(amount,status),room_assignments(rooms(room_number,accommodations(name))),seat_assignments(vehicle_seats(seat_label,vehicles(name))))")
+    .select("id,first_name,last_name,email,phone,birth_date,city,document_expiry,documents(kind,expires_on),pilgrim_health_profiles(mobility,indicative_walking_km,dietary_requirements,allergies),emergency_contacts(name,phone,is_primary),registrations(id,trip_id,status,agreed_price,notes,trips(title,starts_on,ends_on,balance_due_on,accommodations(id),vehicles(id)),trip_groups(name),payments(amount,status,due_on),room_assignments(rooms(room_number,accommodations(name))),seat_assignments(vehicle_seats(seat_label,vehicles(name))))")
     .is("archived_at", null)
     .order("last_name", { ascending: true });
   if (error) {
@@ -136,7 +135,7 @@ export async function getPilgrims(): Promise<Pilgrim[]> {
   return (data as unknown as Row[]).map((item) => {
     const firstName = text(item.first_name);
     const lastName = text(item.last_name);
-    const registration = rows(item.registrations)[0];
+    const registration = pickRelevantRegistration(rows(item.registrations));
     const trip = row(registration?.trips);
     const group = row(registration?.trip_groups);
     const health = row(item.pilgrim_health_profiles);
@@ -148,24 +147,37 @@ export async function getPilgrims(): Promise<Pilgrim[]> {
     const seatAssignment = row(registration?.seat_assignments);
     const assignedSeat = row(seatAssignment?.vehicle_seats);
     const vehicle = row(assignedSeat?.vehicles);
-    const paid = paymentRows.reduce((sum, payment) => sum + (["paid", "partial"].includes(text(payment.status)) ? numberValue(payment.amount) : text(payment.status) === "refunded" ? -numberValue(payment.amount) : 0), 0);
+    const paid = paidAmount(paymentRows);
     const total = numberValue(registration?.agreed_price);
-    let paymentStatus: PaymentStatus = "Da pagare";
-    if (total > 0 && paid >= total) paymentStatus = "Pagato";
-    else if (paid > 0) paymentStatus = "Parziale";
-    const needs = [!registration && "Viaggio", !item.document_expiry && "Documento", total > paid && "Saldo"].filter((entry): entry is string => Boolean(entry));
+    const documentExpiry = latestIdentityDocumentExpiry(item);
+    const roomRequired = rows(trip?.accommodations).length > 0;
+    const seatRequired = rows(trip?.vehicles).length > 0;
+    const readiness = registrationReadiness({
+      hasRegistration: Boolean(registration),
+      registrationStatus: text(registration?.status),
+      documentExpiry,
+      tripEnd: text(trip?.ends_on),
+      hasRoom: !roomRequired || Boolean(roomAssignment),
+      hasSeat: !seatRequired || Boolean(seatAssignment),
+      agreed: total,
+      paid,
+      balanceDueOn: text(trip?.balance_due_on),
+      hasOverduePayment: hasOverduePayment(paymentRows),
+    });
     const dietary = [text(health?.dietary_requirements), text(health?.allergies)].filter(Boolean);
     return {
       id: text(item.id), initials: `${firstName[0] ?? ""}${lastName[0] ?? ""}`.toUpperCase(), name: `${firstName} ${lastName}`.trim(),
       email: text(item.email, "Email non indicata"), phone: text(item.phone, "Telefono non indicato"), birthDate: text(item.birth_date), city: text(item.city, "—"),
-      group: text(group?.name, text(registration?.notes, "Nessun gruppo")), tripId: text(registration?.trip_id), tripName: text(trip?.title, "Non iscritto"), status: pilgrimStatus(registration?.status),
-      paymentStatus,
+      group: text(group?.name, text(registration?.notes, "Nessun gruppo")), tripId: text(registration?.trip_id), tripName: text(trip?.title, "Non iscritto"), status: readiness.status,
+      paymentStatus: readiness.paymentStatus,
       paid,
       total,
       room: assignedRoom ? `${text(accommodation?.name, "Struttura")} · ${text(assignedRoom.room_number)}` : null,
       coachSeat: assignedSeat ? `${text(vehicle?.name, "Mezzo")} · ${text(assignedSeat.seat_label)}` : null,
+      roomRequired,
+      seatRequired,
       dietary, mobility: mobility(health?.mobility), walkingKm: numberValue(health?.indicative_walking_km),
-      missingItems: needs, emergencyContact: contact ? `${text(contact.name)} · ${text(contact.phone)}` : "Non indicato", documentExpiry: text(item.document_expiry),
+      missingItems: readiness.missingItems, emergencyContact: contact ? `${text(contact.name)} · ${text(contact.phone)}` : "Non indicato", documentExpiry,
     };
   });
 }

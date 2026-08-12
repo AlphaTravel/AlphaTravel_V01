@@ -12,7 +12,7 @@ export default async function PilgrimsPage({ searchParams }: { searchParams: Pro
   if (!member) redirect("/accesso-negato");
   const canManage = canManageTravel(member.roleKey);
   const canSeePayments = canReadPayments(member.roleKey);
-  const visibleMissingItems = (items: string[]) => canSeePayments ? items : items.filter((item) => item !== "Saldo");
+  const visibleMissingItems = (items: string[]) => canSeePayments ? items : items.filter((item) => !item.startsWith("Saldo"));
   return (
     <>
       <PageHeader
@@ -22,7 +22,7 @@ export default async function PilgrimsPage({ searchParams }: { searchParams: Pro
         action={canManage ? <><a className="button button-secondary" href="/api/exports/pilgrims"><Download size={15} /> Esporta</a><Link className="button button-primary" href="/pellegrini/nuovo"><Plus size={15} /> Nuovo pellegrino</Link></> : undefined}
       />
       <div className="summary-strip">
-        <span><strong>{pilgrims.length}</strong> attivi</span><span><strong>{pilgrims.filter((item) => !visibleMissingItems(item.missingItems).length).length}</strong> completi</span><span><strong>{pilgrims.filter((item) => visibleMissingItems(item.missingItems).length).length}</strong> da verificare</span>
+        <span><strong>{pilgrims.length}</strong> anagrafiche</span><span><strong>{pilgrims.filter((item) => item.status === "Pronto").length}</strong> pronti</span><span><strong>{pilgrims.filter((item) => visibleMissingItems(item.missingItems).length).length}</strong> da gestire</span>
       </div>
       <PilgrimTable data={pilgrims} initialQuery={q.slice(0, 120)} canViewPayments={canSeePayments} />
     </>

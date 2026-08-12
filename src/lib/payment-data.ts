@@ -69,7 +69,7 @@ export async function getPaymentDashboardData() {
       && text(payment.status) !== "paid"
       && text(payment.status) !== "refunded");
     let status: PaymentStatus = "Da pagare";
-    if (remaining === 0 && agreed > 0) status = "Pagato";
+    if (remaining === 0) status = "Pagato";
     else if (hasOverduePayment) status = "Scaduto";
     else if (paid > 0) status = "Parziale";
     return {

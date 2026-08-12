@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { revalidatePath } from "next/cache";
 import { detectDocumentMime, documentMimeExtensions, MAX_DOCUMENT_BYTES, safeDocumentFilename } from "@/lib/document-security";
 import { getCurrentMember } from "@/lib/live-data";
 import { canManageTravel } from "@/lib/permissions";
@@ -63,5 +64,10 @@ export async function POST(request: Request) {
     console.error("document metadata failed", metadataError.code);
     return json("Documento non registrato; il file è stato rimosso.", 500);
   }
+  revalidatePath(`/pellegrini/${parsed.data.pilgrimId}/documenti`);
+  revalidatePath(`/pellegrini/${parsed.data.pilgrimId}`);
+  revalidatePath("/pellegrini");
+  revalidatePath("/viaggi");
+  revalidatePath("/dashboard");
   return json("Documento caricato.", 201);
 }

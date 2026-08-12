@@ -18,5 +18,8 @@ export async function deleteDocumentAction(formData: FormData) {
   if (storageError) console.error("orphan document cleanup required", storageError.message);
   revalidatePath(`/pellegrini/${parsed.data.pilgrimId}/documenti`);
   revalidatePath(`/pellegrini/${parsed.data.pilgrimId}`);
+  revalidatePath("/pellegrini");
+  revalidatePath("/viaggi");
+  revalidatePath("/dashboard");
   return { ok: true, message: "Documento eliminato." };
 }

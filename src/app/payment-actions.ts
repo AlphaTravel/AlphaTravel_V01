@@ -1,21 +1,11 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { z } from "zod";
 import { getCurrentMember } from "@/lib/live-data";
+import { paymentSchema } from "@/lib/payment-schema";
 import { createClient } from "@/lib/supabase/server";
 
 export type PaymentActionResult = { ok: boolean; message: string };
-
-const paymentSchema = z.object({
-  registrationId: z.uuid(),
-  amount: z.coerce.number().positive().max(1_000_000),
-  status: z.enum(["pending", "paid", "overdue", "refunded"]),
-  method: z.enum(["bank_transfer", "cash", "card_provider", "cheque", "other"]),
-  dueOn: z.union([z.iso.date(), z.literal("")]),
-  externalReference: z.string().trim().max(120).optional().default(""),
-  notes: z.string().trim().max(1000).optional().default(""),
-});
 
 export async function recordPaymentAction(formData: FormData): Promise<PaymentActionResult> {
   const parsed = paymentSchema.safeParse(Object.fromEntries(formData.entries()));
@@ -28,7 +18,7 @@ export async function recordPaymentAction(formData: FormData): Promise<PaymentAc
 
   const { data: registration, error: registrationError } = await supabase
     .from("registrations")
-    .select("agreed_price,payments(amount,status)")
+    .select("trip_id,agreed_price,payments(amount,status)")
     .eq("id", parsed.data.registrationId)
     .eq("organization_id", member.organizationId)
     .single();
@@ -58,5 +48,6 @@ export async function recordPaymentAction(formData: FormData): Promise<PaymentAc
 
   revalidatePath("/pagamenti");
   revalidatePath("/dashboard");
+  revalidatePath(`/viaggi/${registration.trip_id}`);
   return { ok: true, message: "Pagamento registrato." };
 }

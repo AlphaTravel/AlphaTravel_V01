@@ -1,5 +1,5 @@
-export type PilgrimStatus = "Confermato" | "In attesa" | "Da completare";
-export type TripStatus = "Bozza" | "Aperto" | "Confermato" | "Completo" | "Concluso";
+export type PilgrimStatus = "Pronto" | "In attesa" | "Da organizzare" | "Da completare" | "Non iscritto" | "Annullato";
+export type TripStatus = "Bozza" | "Aperto" | "Confermato" | "Completo" | "Concluso" | "Annullato";
 export type PaymentStatus = "Pagato" | "Parziale" | "Da pagare" | "Scaduto";
 export type MobilityLevel = "Autonomo" | "Supporto leggero" | "Assistenza";
 export type AppRole = "admin" | "manager" | "operator" | "guide" | "accountant" | "viewer";
@@ -31,6 +31,8 @@ export interface Pilgrim {
   total: number;
   room: string | null;
   coachSeat: string | null;
+  roomRequired: boolean;
+  seatRequired: boolean;
   dietary: string[];
   mobility: MobilityLevel;
   walkingKm: number;

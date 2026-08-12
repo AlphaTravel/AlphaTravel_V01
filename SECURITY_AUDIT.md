@@ -1,6 +1,6 @@
 # Audit di sicurezza AlphaTravel
 
-Data: 11 agosto 2026
+Data: 12 agosto 2026
 Ambito: applicazione Next.js, Supabase Auth/PostgreSQL/Storage/Edge Functions, configurazione HTTP e dipendenze.
 
 ## Esito
@@ -28,6 +28,9 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 - Upload documenti con verifica della firma binaria, nome file ripulito, limite 4 MB e download firmato di 60 secondi.
 - Esportazioni CSV protette dalla formula injection e prive di dati sanitari o numeri di carta.
 - Controlli database concorrenti su capienza dei viaggi e delle camere, coerenza gruppo/camera/posto con il viaggio e saldo netto di pagamenti/rimborsi.
+- Stato operativo dei partecipanti calcolato dai dati reali del viaggio: documento valido, saldo e scadenze, camera e posto; i vecchi valori fissi dell’iscrizione non possono più lasciare la scheda bloccata.
+- Un solo posto per iscrizione, capienza del viaggio mai inferiore agli iscritti, iscrizioni chiuse rispettate e attività limitate alle date effettive del viaggio anche a livello PostgreSQL.
+- Scadenza del documento sincronizzata dall’archivio privato e relazione documento/organizzazione protetta da un vincolo database dedicato.
 - Controlli per ruolo replicati su pagina, Server Action, API e Row Level Security; le sezioni non autorizzate non vengono renderizzate.
 - Audit delle modifiche sensibili senza memorizzare il contenuto modificato.
 - Console piattaforma ridotta alle sole operazioni essenziali; dashboard calcolata con rollup aggregati per evitare interrogazioni ripetute per ogni ufficio.
@@ -40,13 +43,13 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 
 ## Verifiche eseguite
 
-- 13 migration remote sincronizzate con il repository.
-- Supabase CLI: 13 migration applicate e registrate; schema remoto verificato senza errori.
+- 17 migration remote sincronizzate con il repository.
+- Supabase CLI: 17 migration applicate e registrate; schema remoto verificato senza errori.
 - Edge Function senza autenticazione: risposta `401`.
 - `pnpm audit --prod`: nessuna vulnerabilità nota.
 - ESLint: zero warning/errori.
 - TypeScript: zero errori.
-- 74 test automatici superati in 11 suite, inclusi inventario strutturale di pulsanti/form/collegamenti, fallback POST, organizzazione dei flussi e soglia minima delle scritte.
+- 96 test automatici superati in 14 suite, inclusi tutti i moduli viaggio, stati automatici, date/orari, inventario strutturale di pulsanti/form/collegamenti, fallback POST e soglia minima delle scritte.
 - Collaudo autenticato in produzione della console piattaforma, del salvataggio ufficio, del salvataggio utente e delle otto pagine operative principali.
 - Build Next.js di produzione completata.
 - 26 route dinamiche compilate, incluse logistica, modifica, documenti privati, pagamenti e impostazioni.
