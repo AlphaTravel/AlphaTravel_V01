@@ -18,7 +18,7 @@ export async function recordPaymentAction(formData: FormData): Promise<PaymentAc
 
   const { data: registration, error: registrationError } = await supabase
     .from("registrations")
-    .select("trip_id,agreed_price,payments(amount,status)")
+    .select("trip_id,pilgrim_id,agreed_price,payments(amount,status)")
     .eq("id", parsed.data.registrationId)
     .eq("organization_id", member.organizationId)
     .single();
@@ -48,6 +48,8 @@ export async function recordPaymentAction(formData: FormData): Promise<PaymentAc
 
   revalidatePath("/pagamenti");
   revalidatePath("/dashboard");
+  revalidatePath("/pellegrini");
+  revalidatePath(`/pellegrini/${registration.pilgrim_id}`);
   revalidatePath(`/viaggi/${registration.trip_id}`);
   return { ok: true, message: "Pagamento registrato." };
 }

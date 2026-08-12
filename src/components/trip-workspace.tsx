@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, BedDouble, BusFront, CalendarDays, CheckCircle2, CircleDollarSign, Clock3, FileText, Footprints, Hotel, MapPinned, Salad, Settings2, Users } from "lucide-react";
+import { AlertTriangle, BedDouble, BusFront, CalendarDays, CheckCircle2, CircleDollarSign, Clock3, FileText, Footprints, Hotel, MapPinned, ReceiptText, Salad, Settings2, Users } from "lucide-react";
 import Link from "next/link";
 import { useState, type CSSProperties } from "react";
 import type { TripOperationsData, TripParticipant } from "@/lib/trip-operations-data";
@@ -9,7 +9,7 @@ import { cn, formatCurrency, formatDate, percentage } from "@/lib/utils";
 import { StatusBadge } from "./status-badge";
 
 const tabs = ["Panoramica", "Partecipanti", "Camere", "Pullman", "Programma", "Pagamenti"] as const;
-type Tab = (typeof tabs)[number];
+export type TripWorkspaceTab = (typeof tabs)[number];
 
 function paymentStatus(participant: TripParticipant): PaymentStatus {
   if (participant.paid >= participant.agreed) return "Pagato";
@@ -17,8 +17,8 @@ function paymentStatus(participant: TripParticipant): PaymentStatus {
   return "Da pagare";
 }
 
-export function TripWorkspace({ trip, data, canManage, canViewPayments, canRecordPayments, canViewSensitive }: { trip: Trip; data: TripOperationsData; canManage: boolean; canViewPayments: boolean; canRecordPayments: boolean; canViewSensitive: boolean }) {
-  const [active, setActive] = useState<Tab>("Panoramica");
+export function TripWorkspace({ trip, data, canManage, canViewPayments, canRecordPayments, canViewSensitive, initialTab = "Panoramica" }: { trip: Trip; data: TripOperationsData; canManage: boolean; canViewPayments: boolean; canRecordPayments: boolean; canViewSensitive: boolean; initialTab?: TripWorkspaceTab }) {
+  const [active, setActive] = useState<TripWorkspaceTab>(initialTab);
   const visibleTabs = canViewPayments ? tabs : tabs.filter((tab) => tab !== "Pagamenti");
   return (
     <div className="workspace">
@@ -30,7 +30,7 @@ export function TripWorkspace({ trip, data, canManage, canViewPayments, canRecor
       {active === "Camere" ? <RoomsBoard trip={trip} data={data} canManage={canManage} /> : null}
       {active === "Pullman" ? <CoachBoard trip={trip} data={data} canManage={canManage} /> : null}
       {active === "Programma" ? <Schedule trip={trip} data={data} canManage={canManage} /> : null}
-      {active === "Pagamenti" && canViewPayments ? <Payments data={data.participants} canRecord={canRecordPayments} /> : null}
+      {active === "Pagamenti" && canViewPayments ? <Payments trip={trip} data={data.participants} canRecord={canRecordPayments} /> : null}
     </div>
   );
 }
@@ -84,11 +84,11 @@ function Schedule({ trip, data, canManage }: { trip: Trip; data: TripOperationsD
   return <section className="panel workspace-full"><div className="panel-header"><div><p className="eyebrow">{data.itinerary.length} attività</p><h2>Programma del viaggio</h2></div>{canManage ? <Link className="button button-primary" href={`/viaggi/${trip.id}/logistica?section=schedule`}><Settings2 size={15} /> Gestisci programma</Link> : null}</div><div className="timeline">{data.itinerary.length ? data.itinerary.map((item) => <div className="timeline-item" key={item.id}><time>{new Intl.DateTimeFormat("it-IT", { day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit" }).format(new Date(item.startsAt))}</time><span className={`timeline-dot timeline-${item.type}`} /><div><strong>{item.title}</strong><p>{[item.location, item.details, item.walkingKm ? `${item.walkingKm} km` : ""].filter(Boolean).join(" · ")}</p></div></div>) : <div className="empty-inline">Programma ancora vuoto.</div>}</div><div className="timeline-footer"><Clock3 size={15} /> {walking} km a piedi pianificati · viaggio dal {formatDate(trip.startDate)} al {formatDate(trip.endDate)}</div></section>;
 }
 
-function Payments({ data, canRecord }: { data: TripParticipant[]; canRecord: boolean }) {
+function Payments({ trip, data, canRecord }: { trip: Trip; data: TripParticipant[]; canRecord: boolean }) {
   const collected = data.reduce((sum, participant) => sum + participant.paid, 0);
   const expected = data.reduce((sum, participant) => sum + participant.agreed, 0);
   const paid = data.filter((participant) => paymentStatus(participant) === "Pagato").length;
   const partial = data.filter((participant) => paymentStatus(participant) === "Parziale").length;
   const open = data.filter((participant) => paymentStatus(participant) === "Da pagare").length;
-  return <div className="workspace-grid"><section className="panel panel-span-2"><div className="panel-header"><div><p className="eyebrow">Incassi</p><h2>Situazione partecipanti</h2></div><span className="readiness">{percentage(collected, expected)}%</span></div><div className="large-progress"><span style={{ width: `${percentage(collected, expected)}%` }} /></div><div className="payment-headline"><strong>{formatCurrency(collected)}</strong><span>incassati su {formatCurrency(expected)}</span></div><div className="mini-list compact-list">{data.map((participant) => <div className="mini-list-row" key={participant.registrationId}><span className="table-avatar">{participant.initials}</span><span><strong>{participant.name}</strong><small>{participant.group}</small></span><span><strong>{formatCurrency(participant.paid)}</strong><small>su {formatCurrency(participant.agreed)}</small></span><StatusBadge label={paymentStatus(participant)} /></div>)}</div></section><section className="panel"><div className="panel-header"><div><p className="eyebrow">Riepilogo</p><h2>Stato quote</h2></div><CircleDollarSign size={20} /></div><div className="payment-summary"><span><CheckCircle2 size={16} />Pagati<strong>{paid}</strong></span><span><Clock3 size={16} />Parziali<strong>{partial}</strong></span><span><AlertTriangle size={16} />Da pagare<strong>{open}</strong></span></div>{canRecord ? <Link className="button button-primary" href="/pagamenti/nuovo">Registra pagamento</Link> : null}</section></div>;
+  return <div className="workspace-grid"><section className="panel panel-span-2"><div className="panel-header"><div><p className="eyebrow">Incassi</p><h2>Situazione partecipanti</h2></div><span className="readiness">{percentage(collected, expected)}%</span></div><div className="large-progress"><span style={{ width: `${percentage(collected, expected)}%` }} /></div><div className="payment-headline"><strong>{formatCurrency(collected)}</strong><span>incassati su {formatCurrency(expected)}</span></div><div className="mini-list compact-list">{data.map((participant) => { const remaining = Math.max(0, participant.agreed - participant.paid); return <div className="mini-list-row" key={participant.registrationId}><span className="table-avatar">{participant.initials}</span><span><strong>{participant.name}</strong><small>{participant.group}</small></span><span><strong>{formatCurrency(participant.paid)}</strong><small>su {formatCurrency(participant.agreed)}</small></span><StatusBadge label={paymentStatus(participant)} />{canRecord && remaining > 0 ? <Link className="button button-primary context-payment-action" href={`/pagamenti/nuovo?registrationId=${participant.registrationId}&returnTo=${encodeURIComponent(`/viaggi/${trip.id}?tab=Pagamenti`)}`}><ReceiptText size={14} /> Salda {formatCurrency(remaining)}</Link> : <span className="context-payment-complete">Saldato</span>}</div>; })}</div></section><section className="panel"><div className="panel-header"><div><p className="eyebrow">Riepilogo</p><h2>Stato quote</h2></div><CircleDollarSign size={20} /></div><div className="payment-summary"><span><CheckCircle2 size={16} />Pagati<strong>{paid}</strong></span><span><Clock3 size={16} />Parziali<strong>{partial}</strong></span><span><AlertTriangle size={16} />Da pagare<strong>{open}</strong></span></div>{canRecord ? <Link className="button button-primary" href={`/pagamenti/nuovo?returnTo=${encodeURIComponent(`/viaggi/${trip.id}?tab=Pagamenti`)}`}>Registra pagamento</Link> : null}</section></div>;
 }

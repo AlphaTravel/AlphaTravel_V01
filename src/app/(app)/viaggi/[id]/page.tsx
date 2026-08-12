@@ -8,12 +8,15 @@ import { canManageTravel, canReadPayments, canReadSensitivePilgrimData, canWrite
 import { getTripOperationsData } from "@/lib/trip-operations-data";
 import { formatDate } from "@/lib/utils";
 
-export default async function TripDetailPage({ params }: { params: Promise<{ id: string }> }) {
+export default async function TripDetailPage({ params, searchParams }: { params: Promise<{ id: string }>; searchParams: Promise<{ tab?: string }> }) {
   const { id } = await params;
+  const { tab } = await searchParams;
   const [trips, operations, member] = await Promise.all([getTrips(), getTripOperationsData(id), getCurrentMember()]);
   const trip = trips.find((item) => item.id === id);
   if (!trip || !member) notFound();
   const canManage = canManageTravel(member.roleKey);
+  const canViewPayments = canReadPayments(member.roleKey);
+  const initialTab = tab === "Pagamenti" && canViewPayments ? "Pagamenti" : "Panoramica";
   return (
     <>
       <div className="detail-nav"><Link href="/viaggi"><ArrowLeft size={16} /> Viaggi</Link>{canManage ? <div className="page-actions"><Link className="button button-secondary" href={`/viaggi/${trip.id}/modifica`}><Pencil size={15} /> Dati viaggio</Link><Link className="button button-primary" href={`/viaggi/${trip.id}/logistica`}><Settings2 size={15} /> Organizza viaggio</Link></div> : null}</div>
@@ -21,7 +24,7 @@ export default async function TripDetailPage({ params }: { params: Promise<{ id:
         <div><div className="trip-title-row"><span>{trip.code}</span><StatusBadge label={trip.status} /></div><h1>{trip.title}</h1><p><MapPin size={15} /> {trip.destination}<span>·</span><CalendarDays size={15} /> {formatDate(trip.startDate)} — {formatDate(trip.endDate)}</p></div>
         <div className="trip-header-number"><strong>{trip.participants}</strong><span>partecipanti</span></div>
       </header>
-      <TripWorkspace trip={trip} data={operations} canManage={canManage} canViewPayments={canReadPayments(member.roleKey)} canRecordPayments={canWritePayments(member.roleKey)} canViewSensitive={canReadSensitivePilgrimData(member.roleKey)} />
+      <TripWorkspace trip={trip} data={operations} canManage={canManage} canViewPayments={canViewPayments} canRecordPayments={canWritePayments(member.roleKey)} canViewSensitive={canReadSensitivePilgrimData(member.roleKey)} initialTab={initialTab} />
     </>
   );
 }

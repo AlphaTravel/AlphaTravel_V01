@@ -24,6 +24,8 @@ function amount(value: unknown) {
 
 export type PaymentPosition = {
   registrationId: string;
+  pilgrimId: string;
+  tripId: string;
   pilgrimName: string;
   tripName: string;
   agreed: number;
@@ -33,15 +35,17 @@ export type PaymentPosition = {
   nextDueOn: string | null;
 };
 
-export async function getPaymentDashboardData() {
+export async function getPaymentDashboardData(filters: { pilgrimId?: string; tripId?: string } = {}) {
   const supabase = await createClient();
   if (!supabase) return { positions: [] as PaymentPosition[], expected: 0, collected: 0, dueSoon: 0, overdue: 0 };
 
-  const { data, error } = await supabase
+  let query = supabase
     .from("registrations")
-    .select("id,status,agreed_price,trips(title),pilgrims(first_name,last_name),payments(amount,status,due_on,paid_at)")
-    .neq("status", "cancelled")
-    .order("created_at", { ascending: false });
+    .select("id,pilgrim_id,trip_id,status,agreed_price,trips(title),pilgrims(first_name,last_name),payments(amount,status,due_on,paid_at)")
+    .neq("status", "cancelled");
+  if (filters.pilgrimId) query = query.eq("pilgrim_id", filters.pilgrimId);
+  if (filters.tripId) query = query.eq("trip_id", filters.tripId);
+  const { data, error } = await query.order("created_at", { ascending: false });
   if (error) {
     console.error("getPaymentDashboardData failed", error.code);
     return { positions: [] as PaymentPosition[], expected: 0, collected: 0, dueSoon: 0, overdue: 0 };
@@ -74,6 +78,8 @@ export async function getPaymentDashboardData() {
     else if (paid > 0) status = "Parziale";
     return {
       registrationId: text(registration.id),
+      pilgrimId: text(registration.pilgrim_id),
+      tripId: text(registration.trip_id),
       pilgrimName: `${text(pilgrim?.first_name)} ${text(pilgrim?.last_name)}`.trim() || "Pellegrino",
       tripName: text(trip?.title, "Viaggio"),
       agreed,
