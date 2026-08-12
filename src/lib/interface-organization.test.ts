@@ -26,4 +26,11 @@ describe("interface organization", () => {
     expect(table).toContain("<th>Camera e posto</th>");
     expect(table).not.toContain("<th>Organizzazione</th>");
   });
+
+  it("does not report missing rooms or seats when those services are not planned", () => {
+    const workspace = read("src/components/trip-workspace.tsx");
+    expect(workspace).toContain('roomRequired ? "Camera mancante" : "Camera non prevista"');
+    expect(workspace).toContain('seatRequired ? "Posto mancante" : "Posto non previsto"');
+    expect(workspace).toContain('roomsConfigured ? "Tutte le persone sono assegnate." : "Configura prima struttura e camere."');
+  });
 });

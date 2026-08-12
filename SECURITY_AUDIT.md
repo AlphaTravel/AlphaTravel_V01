@@ -49,7 +49,7 @@ Non esiste un software garantibile “sicuro al 100%”. L’audit non ha rileva
 - `pnpm audit --prod`: nessuna vulnerabilità nota.
 - ESLint: zero warning/errori.
 - TypeScript: zero errori.
-- 96 test automatici superati in 14 suite, inclusi tutti i moduli viaggio, stati automatici, date/orari, inventario strutturale di pulsanti/form/collegamenti, fallback POST e soglia minima delle scritte.
+- 97 test automatici superati in 14 suite, inclusi tutti i moduli viaggio, stati automatici, date/orari, inventario strutturale di pulsanti/form/collegamenti, fallback POST e soglia minima delle scritte.
 - Collaudo autenticato in produzione della console piattaforma, del salvataggio ufficio, del salvataggio utente e delle otto pagine operative principali.
 - Build Next.js di produzione completata.
 - 26 route dinamiche compilate, incluse logistica, modifica, documenti privati, pagamenti e impostazioni.
